@@ -1,0 +1,13 @@
+# --- Ignore Secrets ---
+.env
+.venv
+env/
+venv/
+__pycache__/
+
+# --- Ignore Heavy Files ---
+node_modules/
+.next/
+dist/
+build/
+*.DS_Store
