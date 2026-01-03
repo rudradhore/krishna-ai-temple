@@ -43,7 +43,8 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/chat", {
+      // 🚀 UPDATED: Using your Live Cloud Backend URL
+      const res = await fetch("https://krishna-ai-temple.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: userText }),
@@ -59,11 +60,10 @@ export default function Chat() {
   };
 
   return (
-    // MAIN CONTAINER: 100% Height, Fixed to Viewport
+    // MAIN CONTAINER
     <div className="relative flex flex-col h-[100dvh] w-full bg-[#FDFBF7] overflow-hidden font-sans">
       
       {/* 🪷 RESPONSIVE LOTUS WATERMARK */}
-      {/* Centered, but scales down on mobile (w-full) and up on desktop (max-w-2xl) */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
         <svg 
             viewBox="0 0 200 200" 
@@ -83,15 +83,12 @@ export default function Chat() {
         </svg>
       </div>
 
-      {/* HEADER: Responsive Padding & Text Size */}
+      {/* HEADER */}
       <header className="flex-none z-50 bg-white/80 backdrop-blur-md border-b border-yellow-100 p-3 md:p-4 shadow-sm flex justify-between items-center sticky top-0 transition-all duration-300">
         <div className="flex items-center gap-3">
-            {/* Logo Icon */}
             <div className="w-8 h-8 md:w-10 md:h-10 bg-yellow-50 rounded-full flex items-center justify-center border border-yellow-200">
                 <span className="text-lg md:text-xl">🪷</span>
             </div>
-            
-            {/* Title Text */}
             <div>
                 <h1 className="text-lg md:text-2xl font-semibold text-gray-800 tracking-wide">
                     Krishna AI
@@ -102,7 +99,6 @@ export default function Chat() {
             </div>
         </div>
 
-        {/* Audio Toggle - Touch Friendly Area */}
         <button 
             onClick={() => setIsAudioEnabled(!isAudioEnabled)}
             className={`p-2 md:p-3 rounded-full transition-all active:scale-95 ${
@@ -115,7 +111,7 @@ export default function Chat() {
         </button>
       </header>
       
-      {/* CHAT AREA: Responsive Padding */}
+      {/* CHAT AREA */}
       <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-4 md:space-y-6 z-10 scroll-smooth relative">
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
@@ -128,7 +124,6 @@ export default function Chat() {
             </div>
           </div>
         ))}
-        
         {loading && (
           <div className="flex justify-start">
              <div className="flex items-center gap-2 text-yellow-600 bg-yellow-50/50 px-4 py-2 rounded-full border border-yellow-100/50 text-xs md:text-sm animate-pulse">
@@ -140,11 +135,10 @@ export default function Chat() {
         <div ref={messagesEndRef} className="h-2" />
       </div>
 
-      {/* INPUT AREA: Fixed Bottom, Safe Area for Mobiles */}
+      {/* INPUT AREA */}
       <div className="flex-none z-50 bg-white/90 backdrop-blur-lg border-t border-yellow-100 pb-safe">
         <div className="max-w-4xl mx-auto w-full p-3 md:p-4">
             <div className="flex gap-2 md:gap-3 items-center bg-[#F9F7F2] p-1.5 md:p-2 rounded-full border border-yellow-200 focus-within:border-yellow-500 focus-within:ring-2 focus-within:ring-yellow-100 transition-all shadow-inner">
-            
             <input 
                 className="flex-1 bg-transparent px-3 md:px-5 py-2 md:py-3 outline-none text-gray-700 placeholder-gray-400 text-sm md:text-base min-w-0"
                 value={input}
@@ -152,7 +146,6 @@ export default function Chat() {
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                 placeholder="Ask about your journey..."
             />
-            
             <button 
                 onClick={sendMessage}
                 disabled={loading}
@@ -161,7 +154,6 @@ export default function Chat() {
                 <Send size={18} className="md:w-5 md:h-5" />
             </button>
             </div>
-            
             <div className="text-center mt-2 opacity-50 hover:opacity-100 transition-opacity">
             <p className="text-[10px] text-gray-500 font-serif">
                 सर्वं श्रीकृष्णार्पणमस्तु
