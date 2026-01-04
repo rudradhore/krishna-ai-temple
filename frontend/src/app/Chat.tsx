@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Sparkles, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 
-// --- GLOBAL TYPE FOR SPEECH ---
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -11,7 +10,6 @@ declare global {
 }
 
 export default function Chat() {
-  // --- STATE ---
   const [messages, setMessages] = useState([
     { role: "ai", text: "🌸 Namaste. I am here to guide you. Speak your heart." }
   ]);
@@ -20,14 +18,14 @@ export default function Chat() {
   
   // Audio State
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const isAudioEnabledRef = useRef(true); // ⚡ Ref to track audio instantly
+  const isAudioEnabledRef = useRef(true); 
   
   // Voice Input State
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // --- 1. LOAD PREFERENCE FROM LOCAL STORAGE ---
+  // --- 1. LOAD PREFERENCE ---
   useEffect(() => {
     const savedAudio = localStorage.getItem("krishna_audio");
     if (savedAudio !== null) {
@@ -37,16 +35,13 @@ export default function Chat() {
     }
   }, []);
 
-  // --- 2. TOGGLE AUDIO & SAVE ---
+  // --- 2. TOGGLE AUDIO ---
   const toggleAudio = () => {
     const newState = !isAudioEnabled;
     setIsAudioEnabled(newState);
-    isAudioEnabledRef.current = newState; // Update Ref immediately
-    localStorage.setItem("krishna_audio", String(newState)); // Save preference
-
-    if (!newState) {
-      window.speechSynthesis.cancel(); // 🔇 Stop talking IMMEDIATELY
-    }
+    isAudioEnabledRef.current = newState;
+    localStorage.setItem("krishna_audio", String(newState));
+    if (!newState) window.speechSynthesis.cancel();
   };
 
   // --- AUTO-SCROLL ---
@@ -54,14 +49,14 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // --- VOICE RECOGNITION SETUP ---
+  // --- VOICE INPUT SETUP ---
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
-        recognition.lang = 'en-US'; // We can change this dynamically later
+        recognition.lang = 'en-US'; 
         recognition.interimResults = false;
         
         recognition.onstart = () => setIsListening(true);
@@ -70,10 +65,7 @@ export default function Chat() {
           const transcript = event.results[0][0].transcript;
           setInput(transcript);
         };
-        recognition.onerror = (event: any) => {
-          console.error("Mic Error:", event.error);
-          setIsListening(false);
-        };
+        recognition.onerror = (event: any) => setIsListening(false);
         recognitionRef.current = recognition;
       }
     }
@@ -88,17 +80,42 @@ export default function Chat() {
     else recognitionRef.current.start();
   };
 
-  // --- 3. SPEAK LOGIC (Uses Ref for accuracy) ---
+  // --- 🆕 HELPER: DETECT HINDI ---
+  const isHindiText = (text: string) => {
+    // Checks for Devanagari characters (Hindi/Sanskrit range)
+    const devanagariPattern = /[\u0900-\u097F]/;
+    return devanagariPattern.test(text);
+  };
+
+  // --- 3. SMART SPEAK LOGIC ---
   const speakText = (text: string) => {
-    // Check the REF, not the state. The Ref is always current.
     if (!isAudioEnabledRef.current) return;
 
+    // Stop any previous speech
     window.speechSynthesis.cancel();
+
     const speech = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
-    // Try to find an Indian voice
-    const indianVoice = voices.find(v => v.lang.includes('IN') || v.lang.includes('hi'));
-    if (indianVoice) speech.voice = indianVoice;
+
+    // 🕵️‍♂️ Detect Language
+    if (isHindiText(text)) {
+      // --- HINDI MODE ---
+      speech.lang = 'hi-IN'; // Force browser to use Hindi Engine
+      
+      // Try to find a specific Hindi Voice
+      const hindiVoice = voices.find(v => v.lang.includes('hi') || v.lang.includes('HI'));
+      if (hindiVoice) {
+        speech.voice = hindiVoice;
+      }
+      // (If no Hindi voice is found, the browser will try its best with the 'lang' setting)
+      
+    } else {
+      // --- ENGLISH MODE ---
+      speech.lang = 'en-US';
+      const indianEnglishVoice = voices.find(v => v.lang.includes('IN') && v.lang.includes('en'));
+      if (indianEnglishVoice) speech.voice = indianEnglishVoice;
+    }
+
     speech.pitch = 0.9;
     speech.rate = 0.9;
     window.speechSynthesis.speak(speech);
@@ -108,13 +125,11 @@ export default function Chat() {
   const sendMessage = async () => {
     if (!input.trim()) return;
     const userText = input;
-    
     setInput("");
     setMessages(prev => [...prev, { role: "user", text: userText }]);
     setLoading(true);
 
     try {
-      // 🚀 Backend connection
       const res = await fetch("https://krishna-ai-temple.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -123,7 +138,6 @@ export default function Chat() {
       const data = await res.json();
       setMessages(prev => [...prev, { role: "ai", text: data.reply }]);
       
-      // Speak the reply
       speakText(data.reply);
       
     } catch (error) {
@@ -143,15 +157,9 @@ export default function Chat() {
             </div>
             <h1 className="text-xl font-semibold text-gray-800">Krishna AI</h1>
         </div>
-        
-        {/* 🔊 TOGGLE AUDIO BUTTON */}
         <button 
             onClick={toggleAudio}
-            className={`p-2 rounded-full transition-all border ${
-                isAudioEnabled 
-                ? 'text-yellow-700 bg-yellow-100 border-yellow-200' 
-                : 'text-gray-400 bg-gray-50 border-gray-200'
-            }`}
+            className={`p-2 rounded-full transition-all border ${isAudioEnabled ? 'text-yellow-700 bg-yellow-100 border-yellow-200' : 'text-gray-400 bg-gray-50 border-gray-200'}`}
         >
             {isAudioEnabled ? <Volume2 size={24} /> : <VolumeX size={24} />}
         </button>
