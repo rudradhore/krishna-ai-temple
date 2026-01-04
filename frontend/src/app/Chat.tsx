@@ -2,8 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Sparkles, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 
-// --- TYPE DEFINITION FOR BROWSER SPEECH RECOGNITION ---
-// This tells TypeScript that "SpeechRecognition" exists in the browser.
+// --- TYPE DEFINITION ---
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -19,11 +18,11 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const [isListening, setIsListening] = useState(false); // New State for Mic
+  const [isListening, setIsListening] = useState(false);
 
   // --- REFS ---
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null); // To store the speech tool
+  const recognitionRef = useRef<any>(null);
 
   // --- AUTO-SCROLL ---
   const scrollToBottom = () => {
@@ -31,25 +30,44 @@ export default function Chat() {
   };
   useEffect(scrollToBottom, [messages]);
 
-  // --- INITIALIZE SPEECH RECOGNITION ---
+  // --- INITIALIZE SPEECH (SAFE MODE) ---
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Check if browser supports speech
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
-        recognition.continuous = false; // Stop after one sentence
-        recognition.lang = 'en-US';     // Default to English (we can add Hindi later)
+        recognition.continuous = false; 
+        recognition.lang = 'en-US'; 
         recognition.interimResults = false;
 
-        recognition.onstart = () => setIsListening(true);
-        recognition.onend = () => setIsListening(false);
+        recognition.onstart = () => {
+          console.log("Mic started");
+          setIsListening(true);
+        };
+
+        recognition.onend = () => {
+          console.log("Mic stopped");
+          setIsListening(false);
+        };
         
         recognition.onresult = (event: any) => {
           const transcript = event.results[0][0].transcript;
-          setInput(transcript); // Put spoken text into input box
-          // Optional: Auto-send after speaking? 
-          // For now, let's just fill the box so user can check it.
+          console.log("Heard:", transcript);
+          setInput(transcript); 
+        };
+
+        // 🚨 ERROR HANDLING
+        recognition.onerror = (event: any) => {
+          console.error("Speech Error:", event.error);
+          setIsListening(false);
+          if (event.error === 'not-allowed') {
+            alert("⚠️ Microphone access denied. Please allow microphone permissions in your browser settings.");
+          } else if (event.error === 'no-speech') {
+            alert("⚠️ I didn't hear anything. Please try speaking closer to the mic.");
+          } else {
+            alert("⚠️ Voice Error: " + event.error);
+          }
         };
 
         recognitionRef.current = recognition;
@@ -58,14 +76,22 @@ export default function Chat() {
   }, []);
 
   const toggleMic = () => {
-    if (!recognitionRef.current) {
-      alert("Your browser does not support voice input. Try Chrome or Edge.");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("⚠️ Your browser does not support Voice Input. Please try Google Chrome or MS Edge.");
       return;
     }
+
     if (isListening) {
       recognitionRef.current.stop();
     } else {
-      recognitionRef.current.start();
+      try {
+        recognitionRef.current.start();
+      } catch (err) {
+        console.error(err);
+        // Sometimes it fails if already started, just reset
+        recognitionRef.current.stop(); 
+      }
     }
   };
 
@@ -75,7 +101,6 @@ export default function Chat() {
     window.speechSynthesis.cancel();
     const speech = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
-    // Try to find a gentle Indian English voice
     const indianVoice = voices.find(v => v.lang.includes('IN') || v.lang.includes('hi'));
     if (indianVoice) speech.voice = indianVoice;
     speech.pitch = 0.9; 
@@ -93,7 +118,6 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      // 🚀 Using your Cloud Backend URL
       const res = await fetch("https://krishna-ai-temple.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,7 +134,6 @@ export default function Chat() {
   };
 
   return (
-    // MAIN CONTAINER
     <div className="relative flex flex-col h-[100dvh] w-full bg-[#FDFBF7] overflow-hidden font-sans">
       
       {/* 🪷 LOTUS WATERMARK */}
@@ -172,14 +195,15 @@ export default function Chat() {
         <div className="max-w-4xl mx-auto w-full p-3 md:p-4">
             <div className="flex gap-2 items-center bg-[#F9F7F2] p-2 rounded-full border border-yellow-200 focus-within:ring-2 focus-within:ring-yellow-100 transition-all shadow-inner">
             
-            {/* 🎙️ NEW MICROPHONE BUTTON */}
+            {/* 🎙️ UPDATED MIC BUTTON */}
             <button
                 onClick={toggleMic}
                 className={`p-3 rounded-full transition-all ${
                     isListening 
-                    ? 'bg-red-500 text-white animate-pulse' 
+                    ? 'bg-red-500 text-white animate-pulse shadow-lg ring-2 ring-red-200' 
                     : 'text-gray-400 hover:text-yellow-600 hover:bg-yellow-50'
                 }`}
+                title="Speak to Krishna"
             >
                 {isListening ? <MicOff size={20} /> : <Mic size={20} />}
             </button>
