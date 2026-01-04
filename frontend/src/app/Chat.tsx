@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, Volume2, VolumeX, Mic, MicOff, BookOpen, Repeat } from "lucide-react";
+import { Send, Sparkles, Volume2, VolumeX, Mic, MicOff } from "lucide-react";
 
 declare global {
   interface Window {
@@ -10,7 +10,7 @@ declare global {
 }
 
 export default function Chat() {
-  // --- MODES: 'chat' or 'japa' ---
+  // --- MODES ---
   const [mode, setMode] = useState<'chat' | 'japa'>('chat');
 
   // --- CHAT STATE ---
@@ -24,26 +24,26 @@ export default function Chat() {
   const [japaCount, setJapaCount] = useState(0);
   const [lastChant, setLastChant] = useState("");
   
-  // --- AUDIO/VOICE STATE ---
+  // --- AUDIO STATE ---
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const isAudioEnabledRef = useRef(true); 
   const [isListening, setIsListening] = useState(false);
+  
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // --- HOLY NAMES LIST (Triggers for Counter) ---
-  const holyNames = ["krishna", "krsna", "ram", "rama", "hare", "hari", "govinda", "om", "shiva", "narayana"];
+  // --- 📿 HOLY NAMES LIST ---
+  // We use this to scan the text
+  const holyNames = ["krishna", "krsna", "ram", "rama", "hare", "hari", "govinda", "om", "shiva", "narayana", "radha", "vitthala"];
 
   // --- 1. LOAD SAVED DATA ---
   useEffect(() => {
-    // Audio Preference
     const savedAudio = localStorage.getItem("krishna_audio");
     if (savedAudio !== null) {
       const isEnabled = savedAudio === "true";
       setIsAudioEnabled(isEnabled);
       isAudioEnabledRef.current = isEnabled;
     }
-    // Japa Count
     const savedCount = localStorage.getItem("japa_count");
     if (savedCount) setJapaCount(parseInt(savedCount));
   }, []);
@@ -51,30 +51,36 @@ export default function Chat() {
   // --- 2. TOGGLE MODES ---
   const toggleMode = (newMode: 'chat' | 'japa') => {
     setMode(newMode);
-    // Reset mic when switching
-    if (isListening && recognitionRef.current) recognitionRef.current.stop();
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop(); // Restart mic with new settings
+    }
   };
 
-  // --- 3. JAPA LOGIC ---
-  const incrementJapa = () => {
-    const newCount = japaCount + 1;
-    setJapaCount(newCount);
-    localStorage.setItem("japa_count", String(newCount));
-    
-    // Haptic Feedback (Vibration on phone)
-    if (navigator.vibrate) navigator.vibrate(50);
-  };
-
+  // --- 3. 🧠 SMART JAPA LOGIC (THE FIX) ---
   const processJapaSpeech = (text: string) => {
     const lowerText = text.toLowerCase();
-    // Check if the spoken text contains any holy name
-    const foundName = holyNames.find(name => lowerText.includes(name));
     
-    if (foundName) {
-      setLastChant(foundName.toUpperCase());
-      incrementJapa();
-    } else {
-      setLastChant("..."); // Heard something else
+    // 1. Create a pattern to find ALL holy names in the string
+    // This creates a regex like: /krishna|ram|hare/g
+    const pattern = new RegExp(holyNames.join("|"), "g");
+    
+    // 2. Find all matches
+    const matches = lowerText.match(pattern);
+    
+    // 3. If matches found, add the EXACT NUMBER of matches
+    if (matches && matches.length > 0) {
+      const countToAdd = matches.length;
+      
+      setJapaCount(prev => {
+        const newTotal = prev + countToAdd;
+        localStorage.setItem("japa_count", String(newTotal));
+        return newTotal;
+      });
+
+      setLastChant(`+${countToAdd} (${matches[0].toUpperCase()}...)`);
+      
+      // Haptic Feedback (Vibrate phone)
+      if (navigator.vibrate) navigator.vibrate(50);
     }
   };
 
@@ -84,22 +90,28 @@ export default function Chat() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
-        recognition.continuous = mode === 'japa'; // Continuous in Japa mode
-        recognition.lang = 'en-US'; // Works better for picking up names mixed with accents
-        recognition.interimResults = false;
+        
+        // Japa Mode: Continuous listening
+        // Chat Mode: One sentence then stop
+        recognition.continuous = mode === 'japa'; 
+        recognition.lang = 'en-US'; 
+        recognition.interimResults = false; // Stick to final results to prevent double counting
         
         recognition.onstart = () => setIsListening(true);
+        
         recognition.onend = () => {
-          // In Japa mode, keep listening (auto-restart)
+          // If in Japa mode, auto-restart immediately
           if (mode === 'japa' && isListening) {
-             try { recognition.start(); } catch (e) {}
+             try { recognition.start(); } catch (e) { setIsListening(false); }
           } else {
              setIsListening(false);
           }
         };
 
         recognition.onresult = (event: any) => {
-          const transcript = event.results[event.results.length - 1][0].transcript;
+          // Get the LATEST sentence spoken
+          const latestResultIndex = event.results.length - 1;
+          const transcript = event.results[latestResultIndex][0].transcript;
           
           if (mode === 'chat') {
             setInput(transcript);
@@ -109,21 +121,27 @@ export default function Chat() {
           }
         };
 
-        recognition.onerror = (event: any) => setIsListening(false);
+        recognition.onerror = (event: any) => {
+          // Ignore "no-speech" errors in Japa mode, just keep listening
+          if (event.error !== 'no-speech') {
+             setIsListening(false);
+          }
+        };
         recognitionRef.current = recognition;
       }
     }
-  }, [mode]); // Re-run setup if mode changes
+  }, [mode]); 
 
   const toggleMic = () => {
     if (!recognitionRef.current) return alert("Browser does not support voice.");
     
+    // Manual Toggle
     if (isListening) {
+      setIsListening(false); // Update state to stop auto-restart loop
       recognitionRef.current.stop();
-      setIsListening(false); // Manually force off
     } else {
-      setIsListening(true); // Manually force on
-      recognitionRef.current.start();
+      setIsListening(true);
+      try { recognitionRef.current.start(); } catch(e) {}
     }
   };
 
@@ -191,7 +209,6 @@ export default function Chat() {
             <h1 className="text-lg font-bold text-gray-800">Krishna AI</h1>
         </div>
         <div className="flex gap-2">
-            {/* MODE SWITCHER */}
             <button 
                 onClick={() => toggleMode(mode === 'chat' ? 'japa' : 'chat')}
                 className={`px-3 py-1 rounded-full text-xs font-bold border ${mode === 'japa' ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-gray-100 text-gray-600'}`}
@@ -216,19 +233,18 @@ export default function Chat() {
             
             <div className="h-16 flex items-center justify-center text-xl text-gray-700 font-medium">
                 {isListening ? (
-                    <span className="animate-pulse">listening for "Krishna"...</span>
+                    <span className="animate-pulse">listening... chant freely</span>
                 ) : (
                     <span className="text-gray-400">Tap mic to start</span>
                 )}
             </div>
 
             {lastChant && (
-                <div className="text-orange-400 text-sm animate-bounce">
-                    Detected: {lastChant}
+                <div className="text-orange-400 text-lg font-bold animate-bounce">
+                    {lastChant}
                 </div>
             )}
 
-            {/* BIG MIC BUTTON */}
             <button 
                 onClick={toggleMic}
                 className={`w-24 h-24 rounded-full flex items-center justify-center shadow-xl transition-all transform active:scale-95 ${
@@ -240,7 +256,7 @@ export default function Chat() {
                 {isListening ? <MicOff size={40} /> : <Mic size={40} />}
             </button>
 
-            <button onClick={() => setJapaCount(0)} className="text-xs text-gray-400 underline mt-8">
+            <button onClick={() => { setJapaCount(0); localStorage.setItem("japa_count", "0"); }} className="text-xs text-gray-400 underline mt-8">
                 Reset Counter
             </button>
         </div>
