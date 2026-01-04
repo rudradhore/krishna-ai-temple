@@ -33,7 +33,7 @@ export default function Chat() {
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // --- 📿 HOLY NAMES (SOUND-ALIKES) ---
+  // --- 📿 HOLY NAMES ---
   const holyPatterns = [
     "krishna", "krsna", "chris", "kris", "christ", "trishna", "krish",
     "ram", "rama", "rum", "run", "wrong", "rom", "raam", "drum", "arm",
@@ -52,9 +52,7 @@ export default function Chat() {
     if (savedCount) setJapaCount(parseInt(savedCount));
   }, []);
 
-  // --- 2. MOBILE AUDIO UNLOCKER 🔓 ---
-  // Mobile browsers block audio unless triggered by a click.
-  // We run this empty sound immediately when user clicks Send/Mic.
+  // --- 2. MOBILE AUDIO UNLOCKER ---
   const unlockAudio = () => {
     if (!isAudioEnabledRef.current) return;
     const empty = new SpeechSynthesisUtterance("");
@@ -101,26 +99,21 @@ export default function Chat() {
           if (mode === 'chat') {
             if (latestResult.isFinal) setInput(transcript);
           } else {
-            // === JAPA MODE ===
+            // JAPA MODE
             setDebugTranscript(transcript); 
-            
             const totalInCurrentStream = countNamesInString(transcript);
             const newNames = totalInCurrentStream - currentSentenceCountRef.current;
-            
             if (newNames > 0) {
               setJapaCount(prev => {
                 const newTotal = prev + newNames;
                 localStorage.setItem("japa_count", String(newTotal));
                 return newTotal;
               });
-              
               const words = transcript.trim().split(" ");
               setLastChant(words[words.length - 1]);
               if (navigator.vibrate) navigator.vibrate(50);
-              
               currentSentenceCountRef.current = totalInCurrentStream;
             }
-
             if (latestResult.isFinal) {
               currentSentenceCountRef.current = 0;
             }
@@ -136,7 +129,7 @@ export default function Chat() {
   }, [mode]); 
 
   const toggleMic = () => {
-    unlockAudio(); // 🔓 Wake up audio engine on click
+    unlockAudio(); 
     if (!recognitionRef.current) return alert("Browser does not support voice.");
     if (isListening) {
       setIsListening(false);
@@ -157,7 +150,6 @@ export default function Chat() {
       if (navigator.vibrate) navigator.vibrate(30);
   };
 
-  // --- AUDIO OUTPUT LOGIC ---
   const toggleAudio = () => {
     const newState = !isAudioEnabled;
     setIsAudioEnabled(newState);
@@ -168,41 +160,66 @@ export default function Chat() {
 
   const isHindiText = (text: string) => /[\u0900-\u097F]/.test(text);
 
+  // --- 🦁 MALE VOICE HUNTER ---
+  const getMaleVoice = (voices: any[], langCode: string) => {
+    // 1. Specific known Male voices (Windows/Mac)
+    const preferredNames = ["Rishi", "Ravi", "David", "Daniel", "Mark", "George"];
+    let voice = voices.find(v => 
+        v.lang.includes(langCode) && 
+        preferredNames.some(name => v.name.includes(name))
+    );
+
+    // 2. If not found, look for "Male" in the name
+    if (!voice) {
+        voice = voices.find(v => v.lang.includes(langCode) && v.name.toLowerCase().includes("male"));
+    }
+
+    // 3. If still not found, return ANY voice of that language (fallback)
+    if (!voice) {
+        voice = voices.find(v => v.lang.includes(langCode));
+    }
+    return voice;
+  };
+
   const speakText = (text: string) => {
     if (!isAudioEnabledRef.current) return;
-    
-    // Cancel previous speech
     window.speechSynthesis.cancel();
 
     const speech = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
     
-    // Mobile Fallback: If no voices loaded yet, try again in 100ms
     if (voices.length === 0) {
         setTimeout(() => speakText(text), 100);
         return;
     }
 
     if (isHindiText(text)) {
+      // Try to find Hindi Male
       speech.lang = 'hi-IN';
-      const v = voices.find(v => v.lang.includes('hi'));
-      if (v) speech.voice = v;
+      const hindiVoice = getMaleVoice(voices, 'hi');
+      if (hindiVoice) speech.voice = hindiVoice;
     } else {
-      speech.lang = 'en-US';
-      const v = voices.find(v => v.lang.includes('IN'));
-      if (v) speech.voice = v;
+      // Try to find Indian English Male
+      speech.lang = 'en-IN'; // Default to Indian accent
+      let englishVoice = getMaleVoice(voices, 'IN');
+      
+      // If no Indian male, try Generic English Male (US/UK)
+      if (!englishVoice) {
+         englishVoice = getMaleVoice(voices, 'en');
+      }
+      
+      if (englishVoice) speech.voice = englishVoice;
     }
     
-    speech.pitch = 0.9; 
+    // Lower pitch sounds more masculine and divine
+    speech.pitch = 0.8; 
     speech.rate = 0.9;
     window.speechSynthesis.speak(speech);
   };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    
-    unlockAudio(); // 🔓 Wake up audio engine immediately!
-    
+    unlockAudio();
     const userText = input;
     setInput("");
     setMessages(prev => [...prev, { role: "user", text: userText }]);
@@ -223,12 +240,9 @@ export default function Chat() {
   // --- RENDER ---
   return (
     <div className="relative flex flex-col h-[100dvh] w-full bg-[#FDFBF7] font-sans">
-      
-      {/* HEADER */}
       <header className="flex-none z-50 bg-white/90 backdrop-blur-md border-b border-yellow-200 p-3 shadow-sm flex justify-between items-center sticky top-0">
         <div className="flex items-center gap-3">
             <span className="text-2xl">🪷</span>
-            {/* FORCE DARK TEXT */}
             <h1 className="text-lg font-bold text-black">Krishna AI</h1>
         </div>
         <div className="flex gap-2">
@@ -244,24 +258,18 @@ export default function Chat() {
         </div>
       </header>
 
-      {/* JAPA MODE */}
       {mode === 'japa' ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-6 animate-in fade-in zoom-in duration-500">
             <div>
                 <h2 className="text-gray-600 text-sm uppercase tracking-widest mb-2 font-semibold">Mantra Counter</h2>
                 <div className="text-8xl font-bold text-orange-600 drop-shadow-sm font-mono">{japaCount}</div>
             </div>
-            
             <div className="h-8 flex items-center justify-center text-lg font-medium">
                 {isListening ? <span className="animate-pulse text-green-700 font-bold">Listening...</span> : <span className="text-gray-500">Mic Off</span>}
             </div>
-
-            {/* DEBUG BOX: Darker Text */}
             <div className="w-full max-w-xs h-16 bg-gray-200 rounded p-2 text-xs text-gray-800 overflow-hidden text-center mx-auto border border-gray-300">
                 {debugTranscript || "Say 'Ram', 'Krishna', 'Hari'..."}
             </div>
-
-            {/* CONTROLS */}
             <div className="flex gap-6 items-center">
                 <button 
                     onClick={toggleMic}
@@ -269,7 +277,6 @@ export default function Chat() {
                 >
                     {isListening ? <MicOff size={32} /> : <Mic size={32} />}
                 </button>
-                
                 <button 
                     onClick={manualCount}
                     className="w-20 h-20 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-xl active:scale-90 hover:bg-orange-600 transition-all border-2 border-orange-400"
@@ -278,21 +285,19 @@ export default function Chat() {
                 </button>
             </div>
             <p className="text-[10px] text-gray-500 font-medium">Tap Hand to count manually</p>
-
             <button onClick={() => { setJapaCount(0); localStorage.setItem("japa_count", "0"); }} className="text-xs text-gray-500 underline mt-4 hover:text-red-500">
                 Reset Counter
             </button>
         </div>
       ) : (
-        /* CHAT MODE */
         <>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] p-4 rounded-2xl shadow-md text-sm md:text-base font-medium
                         ${m.role === 'user' 
-                            ? 'bg-[#E6D0A1] text-gray-900 border border-yellow-300 rounded-br-none' // User Color
-                            : 'bg-white text-gray-900 border border-yellow-200 rounded-bl-none'      // AI Color
+                            ? 'bg-[#E6D0A1] text-gray-900 border border-yellow-300 rounded-br-none' 
+                            : 'bg-white text-gray-900 border border-yellow-200 rounded-bl-none'
                         }`}>
                         {m.text}
                     </div>
@@ -301,13 +306,11 @@ export default function Chat() {
                 {loading && <div className="text-yellow-700 text-sm animate-pulse px-4 font-semibold">Contemplating...</div>}
                 <div ref={messagesEndRef} className="h-2" />
             </div>
-
             <div className="p-3 bg-white border-t border-yellow-200 shadow-lg">
                 <div className="flex gap-2 items-center bg-[#F9F7F2] p-2 rounded-full border border-yellow-300 shadow-inner">
                     <button onClick={toggleMic} className={`p-3 rounded-full shadow-sm ${isListening ? 'bg-red-600 text-white animate-pulse' : 'bg-white text-gray-600 border border-gray-200'}`}>
                          <Mic size={20} />
                     </button>
-                    {/* DARK INPUT TEXT */}
                     <input 
                         className="flex-1 bg-transparent px-2 outline-none text-black placeholder-gray-500 font-medium" 
                         value={input} 
