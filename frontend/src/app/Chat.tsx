@@ -24,6 +24,9 @@ export default function Chat() {
   const [japaCount, setJapaCount] = useState(0);
   const [lastChant, setLastChant] = useState("");
   
+  // ⚡ NEW: To track counts inside a single continuous sentence
+  const currentSentenceCountRef = useRef(0);
+
   // --- AUDIO STATE ---
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const isAudioEnabledRef = useRef(true); 
@@ -33,16 +36,14 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // --- 📿 HOLY NAMES LIST ---
-  // We use this to scan the text
-  const holyNames = ["krishna", "krsna", "ram", "rama", "hare", "hari", "govinda", "om", "shiva", "narayana", "radha", "vitthala"];
+  const holyNames = ["krishna", "krsna", "ram", "rama", "hare", "hari", "govinda", "om", "shiva", "narayana", "radha", "vitthala", "madhava", "keshava"];
 
   // --- 1. LOAD SAVED DATA ---
   useEffect(() => {
     const savedAudio = localStorage.getItem("krishna_audio");
     if (savedAudio !== null) {
-      const isEnabled = savedAudio === "true";
-      setIsAudioEnabled(isEnabled);
-      isAudioEnabledRef.current = isEnabled;
+      setIsAudioEnabled(savedAudio === "true");
+      isAudioEnabledRef.current = (savedAudio === "true");
     }
     const savedCount = localStorage.getItem("japa_count");
     if (savedCount) setJapaCount(parseInt(savedCount));
@@ -52,36 +53,16 @@ export default function Chat() {
   const toggleMode = (newMode: 'chat' | 'japa') => {
     setMode(newMode);
     if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop(); // Restart mic with new settings
+      recognitionRef.current.stop();
     }
   };
 
-  // --- 3. 🧠 SMART JAPA LOGIC (THE FIX) ---
-  const processJapaSpeech = (text: string) => {
+  // --- 3. ⚡ REAL-TIME COUNTING LOGIC ---
+  const countNamesInString = (text: string) => {
     const lowerText = text.toLowerCase();
-    
-    // 1. Create a pattern to find ALL holy names in the string
-    // This creates a regex like: /krishna|ram|hare/g
     const pattern = new RegExp(holyNames.join("|"), "g");
-    
-    // 2. Find all matches
     const matches = lowerText.match(pattern);
-    
-    // 3. If matches found, add the EXACT NUMBER of matches
-    if (matches && matches.length > 0) {
-      const countToAdd = matches.length;
-      
-      setJapaCount(prev => {
-        const newTotal = prev + countToAdd;
-        localStorage.setItem("japa_count", String(newTotal));
-        return newTotal;
-      });
-
-      setLastChant(`+${countToAdd} (${matches[0].toUpperCase()}...)`);
-      
-      // Haptic Feedback (Vibrate phone)
-      if (navigator.vibrate) navigator.vibrate(50);
-    }
+    return matches ? matches.length : 0;
   };
 
   // --- 4. VOICE SETUP ---
@@ -91,41 +72,69 @@ export default function Chat() {
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
         
-        // Japa Mode: Continuous listening
-        // Chat Mode: One sentence then stop
         recognition.continuous = mode === 'japa'; 
         recognition.lang = 'en-US'; 
-        recognition.interimResults = false; // Stick to final results to prevent double counting
         
-        recognition.onstart = () => setIsListening(true);
+        // 🚀 CRITICAL CHANGE: Enable Interim Results
+        // This lets us see words WHILE you are speaking them.
+        recognition.interimResults = true; 
+        
+        recognition.onstart = () => {
+          setIsListening(true);
+          currentSentenceCountRef.current = 0; // Reset temp tracker
+        };
         
         recognition.onend = () => {
-          // If in Japa mode, auto-restart immediately
           if (mode === 'japa' && isListening) {
              try { recognition.start(); } catch (e) { setIsListening(false); }
           } else {
              setIsListening(false);
           }
+          currentSentenceCountRef.current = 0; // Reset temp tracker
         };
 
         recognition.onresult = (event: any) => {
-          // Get the LATEST sentence spoken
-          const latestResultIndex = event.results.length - 1;
-          const transcript = event.results[latestResultIndex][0].transcript;
+          const results = event.results;
+          // Get the latest result (the sentence currently being spoken)
+          const latestResult = results[results.length - 1];
+          const transcript = latestResult[0].transcript;
           
           if (mode === 'chat') {
-            setInput(transcript);
+            // Only update chat input when final (to avoid flickering)
+            if (latestResult.isFinal) setInput(transcript);
           } else {
-            // JAPA MODE
-            processJapaSpeech(transcript);
+            // === JAPA MODE (REAL-TIME) ===
+            
+            // 1. Count total names in the CURRENT stream
+            const totalInCurrentStream = countNamesInString(transcript);
+            
+            // 2. Calculate how many are NEW since the last update
+            const newNames = totalInCurrentStream - currentSentenceCountRef.current;
+            
+            if (newNames > 0) {
+              // Found new names! Add them immediately.
+              setJapaCount(prev => {
+                const newTotal = prev + newNames;
+                localStorage.setItem("japa_count", String(newTotal));
+                return newTotal;
+              });
+              
+              setLastChant("+" + newNames);
+              if (navigator.vibrate) navigator.vibrate(50);
+              
+              // Update our tracker so we don't count these again
+              currentSentenceCountRef.current = totalInCurrentStream;
+            }
+
+            // 3. If sentence finished, reset the tracker for the NEXT sentence
+            if (latestResult.isFinal) {
+              currentSentenceCountRef.current = 0;
+            }
           }
         };
 
         recognition.onerror = (event: any) => {
-          // Ignore "no-speech" errors in Japa mode, just keep listening
-          if (event.error !== 'no-speech') {
-             setIsListening(false);
-          }
+          if (event.error !== 'no-speech') setIsListening(false);
         };
         recognitionRef.current = recognition;
       }
@@ -134,10 +143,8 @@ export default function Chat() {
 
   const toggleMic = () => {
     if (!recognitionRef.current) return alert("Browser does not support voice.");
-    
-    // Manual Toggle
     if (isListening) {
-      setIsListening(false); // Update state to stop auto-restart loop
+      setIsListening(false);
       recognitionRef.current.stop();
     } else {
       setIsListening(true);
@@ -145,7 +152,7 @@ export default function Chat() {
     }
   };
 
-  // --- 5. CHAT LOGIC ---
+  // --- 5. CHAT LOGIC (Standard) ---
   const toggleAudio = () => {
     const newState = !isAudioEnabled;
     setIsAudioEnabled(newState);
@@ -153,35 +160,32 @@ export default function Chat() {
     localStorage.setItem("krishna_audio", String(newState));
     if (!newState) window.speechSynthesis.cancel();
   };
-
+  
   const isHindiText = (text: string) => /[\u0900-\u097F]/.test(text);
-
-  const speakText = (text: string) => {
+  const speakText = (text: string) => { /* Same as before */ 
     if (!isAudioEnabledRef.current) return;
     window.speechSynthesis.cancel();
     const speech = new SpeechSynthesisUtterance(text);
     const voices = window.speechSynthesis.getVoices();
-    
     if (isHindiText(text)) {
       speech.lang = 'hi-IN';
-      const hindiVoice = voices.find(v => v.lang.includes('hi'));
-      if (hindiVoice) speech.voice = hindiVoice;
+      const v = voices.find(v => v.lang.includes('hi'));
+      if (v) speech.voice = v;
     } else {
       speech.lang = 'en-US';
-      const indianVoice = voices.find(v => v.lang.includes('IN'));
-      if (indianVoice) speech.voice = indianVoice;
+      const v = voices.find(v => v.lang.includes('IN'));
+      if (v) speech.voice = v;
     }
     speech.pitch = 0.9; speech.rate = 0.9;
     window.speechSynthesis.speak(speech);
   };
 
-  const sendMessage = async () => {
+  const sendMessage = async () => { /* Same as before */
     if (!input.trim()) return;
     const userText = input;
     setInput("");
     setMessages(prev => [...prev, { role: "user", text: userText }]);
     setLoading(true);
-
     try {
       const res = await fetch("https://krishna-ai-temple.onrender.com/chat", {
         method: "POST",
@@ -191,18 +195,13 @@ export default function Chat() {
       const data = await res.json();
       setMessages(prev => [...prev, { role: "ai", text: data.reply }]);
       speakText(data.reply);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: "ai", text: "Connection faint..." }]);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { setMessages(prev => [...prev, { role: "ai", text: "Connection faint..." }]); } 
+    finally { setLoading(false); }
   };
 
   // --- RENDER ---
   return (
     <div className="relative flex flex-col h-[100dvh] w-full bg-[#FDFBF7] font-sans">
-      
-      {/* HEADER */}
       <header className="flex-none z-50 bg-white/80 backdrop-blur-md border-b border-yellow-100 p-3 shadow-sm flex justify-between items-center sticky top-0">
         <div className="flex items-center gap-3">
             <span className="text-2xl">🪷</span>
@@ -213,7 +212,7 @@ export default function Chat() {
                 onClick={() => toggleMode(mode === 'chat' ? 'japa' : 'chat')}
                 className={`px-3 py-1 rounded-full text-xs font-bold border ${mode === 'japa' ? 'bg-orange-100 text-orange-700 border-orange-300' : 'bg-gray-100 text-gray-600'}`}
             >
-                {mode === 'chat' ? 'Switch to Japa' : 'Back to Chat'}
+                {mode === 'chat' ? 'Japa Mode' : 'Chat Mode'}
             </button>
             <button onClick={toggleAudio} className={`p-2 rounded-full border ${isAudioEnabled ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-50 text-gray-400'}`}>
                 {isAudioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
@@ -221,37 +220,24 @@ export default function Chat() {
         </div>
       </header>
 
-      {/* === JAPA MODE UI === */}
       {mode === 'japa' ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-8 animate-in fade-in zoom-in duration-500">
             <div>
                 <h2 className="text-gray-500 text-sm uppercase tracking-widest mb-2">Mantra Counter</h2>
-                <div className="text-8xl font-bold text-orange-600 drop-shadow-sm font-mono">
+                <div className="text-8xl font-bold text-orange-600 drop-shadow-sm font-mono transition-all scale-100 transform duration-100">
                     {japaCount}
                 </div>
             </div>
             
             <div className="h-16 flex items-center justify-center text-xl text-gray-700 font-medium">
-                {isListening ? (
-                    <span className="animate-pulse">listening... chant freely</span>
-                ) : (
-                    <span className="text-gray-400">Tap mic to start</span>
-                )}
+                {isListening ? <span className="animate-pulse">listening...</span> : <span className="text-gray-400">Tap mic to start</span>}
             </div>
 
-            {lastChant && (
-                <div className="text-orange-400 text-lg font-bold animate-bounce">
-                    {lastChant}
-                </div>
-            )}
+            {lastChant && <div className="text-orange-400 text-lg font-bold animate-bounce">{lastChant}</div>}
 
             <button 
                 onClick={toggleMic}
-                className={`w-24 h-24 rounded-full flex items-center justify-center shadow-xl transition-all transform active:scale-95 ${
-                    isListening 
-                    ? 'bg-red-500 text-white ring-4 ring-red-200 animate-pulse' 
-                    : 'bg-orange-500 text-white hover:bg-orange-600'
-                }`}
+                className={`w-24 h-24 rounded-full flex items-center justify-center shadow-xl transition-all transform active:scale-95 ${isListening ? 'bg-red-500 text-white ring-4 ring-red-200 animate-pulse' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
             >
                 {isListening ? <MicOff size={40} /> : <Mic size={40} />}
             </button>
@@ -261,7 +247,7 @@ export default function Chat() {
             </button>
         </div>
       ) : (
-        /* === CHAT MODE UI === */
+        /* CHAT UI */
         <>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.map((m, i) => (
@@ -280,16 +266,8 @@ export default function Chat() {
                     <button onClick={toggleMic} className={`p-3 rounded-full ${isListening ? 'bg-red-500 text-white animate-pulse' : 'text-gray-400'}`}>
                         {isListening ? <MicOff size={20} /> : <Mic size={20} />}
                     </button>
-                    <input 
-                        className="flex-1 bg-transparent px-2 outline-none text-gray-700"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                        placeholder="Ask Krishna..."
-                    />
-                    <button onClick={sendMessage} disabled={loading} className="p-3 bg-yellow-500 text-white rounded-full shadow-md">
-                        <Send size={18} />
-                    </button>
+                    <input className="flex-1 bg-transparent px-2 outline-none text-gray-700" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && sendMessage()} placeholder="Ask Krishna..." />
+                    <button onClick={sendMessage} disabled={loading} className="p-3 bg-yellow-500 text-white rounded-full shadow-md"><Send size={18} /></button>
                 </div>
             </div>
         </>
