@@ -29,7 +29,9 @@ if not api_key:
     print("⚠️ WARNING: GOOGLE_API_KEY not found in environment variables!")
 
 genai.configure(api_key=api_key)
-model = genai.GenerativeModel('gemini-pro')
+
+# 🚀 UPDATED MODEL NAME: gemini-1.5-flash (Faster & Newer)
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # Import the Prompt
 try:
@@ -61,7 +63,7 @@ async def chat_endpoint(request: ChatRequest):
         chat_history.append({"role": "User", "text": request.text})
         chat_history.append({"role": "Krishna", "text": reply_text})
 
-        # 2. Generate Audio (Edge TTS) - The Male Voice Logic
+        # 2. Generate Audio (Edge TTS)
         # Voices: 'en-IN-PrabhatNeural' (Indian English Male)
         #         'hi-IN-MadhurNeural' (Hindi Male)
         
@@ -77,7 +79,7 @@ async def chat_endpoint(request: ChatRequest):
             
         await communicate.save(temp_filename)
 
-        # Read the file and convert to Base64 (to send over JSON)
+        # Read the file and convert to Base64
         with open(temp_filename, "rb") as audio_file:
             audio_bytes = audio_file.read()
             audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
@@ -87,13 +89,14 @@ async def chat_endpoint(request: ChatRequest):
 
         return {
             "reply": reply_text, 
-            "audio": audio_base64  # Sending the actual MP3 data
+            "audio": audio_base64 
         }
 
     except Exception as e:
         print(f"Error: {e}")
+        # Return a polite error if Google fails, but keep the app running
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def home():
-    return {"message": "Krishna Brain is Running with Voice 🕉️"}
+    return {"message": "Krishna Brain is Running with Gemini 1.5 Flash 🕉️"}
