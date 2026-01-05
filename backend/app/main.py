@@ -4,8 +4,7 @@ import google.generativeai as genai
 import os
 import edge_tts
 import base64
-import tempfile
-import asyncio
+# ...existing code...
 import re
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,9 +28,20 @@ if not api_key:
     print("⚠️ WARNING: GOOGLE_API_KEY not found!")
 
 genai.configure(api_key=api_key)
+
+# 🔍 DIAGNOSTIC: Print available models to logs
+try:
+    print("🔍 Listing available Google Models...")
+    for m in genai.list_models():
+        if 'generateContent' in m.supported_generation_methods:
+            print(f"   - {m.name}")
+except Exception as e:
+    print(f"⚠️ Could not list models: {e}")
+
+# Use the standard Flash model
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Safety Settings (Allow religious/war context from Gita)
+# Safety Settings
 safety_settings = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -55,24 +65,22 @@ def is_hindi(text):
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     try:
-        # --- 1. GENERATE TEXT (With Safety Handling) ---
+        # --- 1. GENERATE TEXT ---
         history_context = "\n".join([f"{msg['role']}: {msg['text']}" for msg in chat_history[-4:]])
         full_prompt = f"{KRISHNA_SYSTEM_PROMPT}\n\nRecent Chat:\n{history_context}\nUser: {request.text}\nKrishna:"
         
         response = model.generate_content(full_prompt, safety_settings=safety_settings)
         
-        # Check if Gemini refused to answer
         if not response.parts:
-            print("⚠️ Gemini blocked the response due to safety filters.")
-            return {"reply": "My dear friend, my mind is clouded. Please ask in a different way.", "audio": None}
+            # Fallback if filtered
+            return {"reply": "My mind is clouded. Please ask again.", "audio": None}
             
         reply_text = response.text
         
-        # Save history
         chat_history.append({"role": "User", "text": request.text})
         chat_history.append({"role": "Krishna", "text": reply_text})
 
-        # --- 2. GENERATE AUDIO (With Error Protection) ---
+        # --- 2. GENERATE AUDIO ---
         audio_base64 = None
         try:
             voice = "en-IN-PrabhatNeural"
@@ -80,24 +88,18 @@ async def chat_endpoint(request: ChatRequest):
                 voice = "hi-IN-MadhurNeural"
 
             communicate = edge_tts.Communicate(reply_text, voice)
-            
-            # Generate a unique filename using UUID to avoid collisions
             temp_filename = f"/tmp/{uuid.uuid4()}.mp3"
-            
             await communicate.save(temp_filename)
 
-            # Read and encode
             with open(temp_filename, "rb") as audio_file:
                 audio_bytes = audio_file.read()
                 audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
             
-            # Cleanup
             if os.path.exists(temp_filename):
                 os.remove(temp_filename)
                 
         except Exception as audio_error:
-            print(f"⚠️ Audio Generation Failed: {audio_error}")
-            # We do NOT crash. We just continue without audio.
+            print(f"⚠️ Audio Failed: {audio_error}")
             audio_base64 = None 
 
         return {
@@ -107,9 +109,8 @@ async def chat_endpoint(request: ChatRequest):
 
     except Exception as e:
         print(f"❌ CRITICAL SERVER ERROR: {e}")
-        # Print the actual error to the logs so we can see it
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def home():
-    return {"message": "Krishna Brain Online (Bulletproof Version) 🕉️"}
+    return {"message": "Krishna Brain Online 🕉️"}
