@@ -4,7 +4,8 @@ import google.generativeai as genai
 import os
 import edge_tts
 import base64
-# ...existing code...
+import tempfile
+import asyncio
 import re
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,19 +30,11 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# 🔍 DIAGNOSTIC: Print available models to logs
-try:
-    print("🔍 Listing available Google Models...")
-    for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-            print(f"   - {m.name}")
-except Exception as e:
-    print(f"⚠️ Could not list models: {e}")
+# 🔄 REVERTING TO THE STABLE MODEL
+# 'gemini-pro' is the most compatible model alias.
+model = genai.GenerativeModel('gemini-pro')
 
-# Use the standard Flash model
-model = genai.GenerativeModel('gemini-1.5-flash')
-
-# Safety Settings
+# Safety Settings (Explicitly allowing content)
 safety_settings = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -72,7 +65,6 @@ async def chat_endpoint(request: ChatRequest):
         response = model.generate_content(full_prompt, safety_settings=safety_settings)
         
         if not response.parts:
-            # Fallback if filtered
             return {"reply": "My mind is clouded. Please ask again.", "audio": None}
             
         reply_text = response.text
@@ -80,9 +72,10 @@ async def chat_endpoint(request: ChatRequest):
         chat_history.append({"role": "User", "text": request.text})
         chat_history.append({"role": "Krishna", "text": reply_text})
 
-        # --- 2. GENERATE AUDIO ---
+        # --- 2. GENERATE AUDIO (Edge TTS) ---
         audio_base64 = None
         try:
+            # Male Voices
             voice = "en-IN-PrabhatNeural"
             if is_hindi(reply_text):
                 voice = "hi-IN-MadhurNeural"
@@ -108,9 +101,10 @@ async def chat_endpoint(request: ChatRequest):
         }
 
     except Exception as e:
+        # Log the specific error
         print(f"❌ CRITICAL SERVER ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def home():
-    return {"message": "Krishna Brain Online 🕉️"}
+    return {"message": "Krishna Brain Online (Gemini Pro) 🕉️"}
