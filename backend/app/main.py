@@ -7,6 +7,7 @@ import base64
 import tempfile
 import asyncio
 import re
+import uuid
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -14,7 +15,6 @@ load_dotenv()
 
 app = FastAPI()
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,66 +26,79 @@ app.add_middleware(
 # Setup Gemini
 api_key = os.getenv("GOOGLE_API_KEY")
 if not api_key:
-    print("⚠️ WARNING: GOOGLE_API_KEY not found in environment variables!")
+    print("⚠️ WARNING: GOOGLE_API_KEY not found!")
 
 genai.configure(api_key=api_key)
-
-# 🚀 UPDATED MODEL NAME: gemini-1.5-flash (Faster & Newer)
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# Import the Prompt
+# Safety Settings (Allow religious/war context from Gita)
+safety_settings = [
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+]
+
 try:
     from app.prompt import KRISHNA_SYSTEM_PROMPT
 except ImportError:
     KRISHNA_SYSTEM_PROMPT = "You are Krishna. Answer with wisdom."
 
-# Chat History (Simple in-memory)
 chat_history = []
 
 class ChatRequest(BaseModel):
     text: str
 
 def is_hindi(text):
-    # Check for Devanagari characters
     return bool(re.search(r'[\u0900-\u097F]', text))
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     try:
-        # 1. Get Answer from Gemini
+        # --- 1. GENERATE TEXT (With Safety Handling) ---
         history_context = "\n".join([f"{msg['role']}: {msg['text']}" for msg in chat_history[-4:]])
         full_prompt = f"{KRISHNA_SYSTEM_PROMPT}\n\nRecent Chat:\n{history_context}\nUser: {request.text}\nKrishna:"
         
-        response = model.generate_content(full_prompt)
+        response = model.generate_content(full_prompt, safety_settings=safety_settings)
+        
+        # Check if Gemini refused to answer
+        if not response.parts:
+            print("⚠️ Gemini blocked the response due to safety filters.")
+            return {"reply": "My dear friend, my mind is clouded. Please ask in a different way.", "audio": None}
+            
         reply_text = response.text
         
-        # Save to history
+        # Save history
         chat_history.append({"role": "User", "text": request.text})
         chat_history.append({"role": "Krishna", "text": reply_text})
 
-        # 2. Generate Audio (Edge TTS)
-        # Voices: 'en-IN-PrabhatNeural' (Indian English Male)
-        #         'hi-IN-MadhurNeural' (Hindi Male)
-        
-        voice = "en-IN-PrabhatNeural" # Default Male English
-        if is_hindi(reply_text):
-            voice = "hi-IN-MadhurNeural" # Default Male Hindi
+        # --- 2. GENERATE AUDIO (With Error Protection) ---
+        audio_base64 = None
+        try:
+            voice = "en-IN-PrabhatNeural"
+            if is_hindi(reply_text):
+                voice = "hi-IN-MadhurNeural"
 
-        communicate = edge_tts.Communicate(reply_text, voice)
-        
-        # Create a temporary file to store the audio
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
-            temp_filename = temp_audio.name
+            communicate = edge_tts.Communicate(reply_text, voice)
             
-        await communicate.save(temp_filename)
+            # Generate a unique filename using UUID to avoid collisions
+            temp_filename = f"/tmp/{uuid.uuid4()}.mp3"
+            
+            await communicate.save(temp_filename)
 
-        # Read the file and convert to Base64
-        with open(temp_filename, "rb") as audio_file:
-            audio_bytes = audio_file.read()
-            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+            # Read and encode
+            with open(temp_filename, "rb") as audio_file:
+                audio_bytes = audio_file.read()
+                audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
             
-        # Clean up temp file
-        os.remove(temp_filename)
+            # Cleanup
+            if os.path.exists(temp_filename):
+                os.remove(temp_filename)
+                
+        except Exception as audio_error:
+            print(f"⚠️ Audio Generation Failed: {audio_error}")
+            # We do NOT crash. We just continue without audio.
+            audio_base64 = None 
 
         return {
             "reply": reply_text, 
@@ -93,10 +106,10 @@ async def chat_endpoint(request: ChatRequest):
         }
 
     except Exception as e:
-        print(f"Error: {e}")
-        # Return a polite error if Google fails, but keep the app running
+        print(f"❌ CRITICAL SERVER ERROR: {e}")
+        # Print the actual error to the logs so we can see it
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def home():
-    return {"message": "Krishna Brain is Running with Gemini 1.5 Flash 🕉️"}
+    return {"message": "Krishna Brain Online (Bulletproof Version) 🕉️"}
