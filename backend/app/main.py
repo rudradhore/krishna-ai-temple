@@ -30,11 +30,54 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# 🔄 REVERTING TO THE STABLE MODEL
-# 'gemini-pro' is the most compatible model alias.
-model = genai.GenerativeModel('gemini-pro')
+# ---------------------------------------------------------
+# 🧠 SMART MODEL SELECTOR (The Fix)
+# ---------------------------------------------------------
+model = None
 
-# Safety Settings (Explicitly allowing content)
+def setup_model():
+    global model
+    print("🔍 Hunting for a working Google Model...")
+    try:
+        # 1. Ask Google what models are available
+        available_models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+        
+        print(f"📋 Available Models found: {available_models}")
+
+        # 2. Try to pick the best one
+        chosen_model_name = None
+        
+        # Priority List
+        priorities = ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']
+        
+        # Check if any priority model exists in the available list
+        for p in priorities:
+            if p in available_models:
+                chosen_model_name = p
+                break
+        
+        # Fallback: Just take the first one available
+        if not chosen_model_name and available_models:
+            chosen_model_name = available_models[0]
+
+        if chosen_model_name:
+            print(f"✅ Selected Model: {chosen_model_name}")
+            model = genai.GenerativeModel(chosen_model_name)
+        else:
+            print("❌ NO MODELS FOUND. Check your API Key billing/permissions.")
+            model = None
+
+    except Exception as e:
+        print(f"❌ Error listing models: {e}")
+        model = None
+
+# Run setup immediately
+setup_model()
+
+# Safety Settings
 safety_settings = [
     {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
@@ -57,6 +100,15 @@ def is_hindi(text):
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
+    global model
+    
+    # Retry setup if model failed previously
+    if not model:
+        setup_model()
+    
+    if not model:
+        raise HTTPException(status_code=500, detail="Server could not find a working Google AI Model. Check Server Logs.")
+
     try:
         # --- 1. GENERATE TEXT ---
         history_context = "\n".join([f"{msg['role']}: {msg['text']}" for msg in chat_history[-4:]])
@@ -75,7 +127,6 @@ async def chat_endpoint(request: ChatRequest):
         # --- 2. GENERATE AUDIO (Edge TTS) ---
         audio_base64 = None
         try:
-            # Male Voices
             voice = "en-IN-PrabhatNeural"
             if is_hindi(reply_text):
                 voice = "hi-IN-MadhurNeural"
@@ -101,10 +152,9 @@ async def chat_endpoint(request: ChatRequest):
         }
 
     except Exception as e:
-        # Log the specific error
         print(f"❌ CRITICAL SERVER ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 def home():
-    return {"message": "Krishna Brain Online (Gemini Pro) 🕉️"}
+    return {"message": "Krishna Brain Online (Auto-Detect Mode) 🕉️"}
