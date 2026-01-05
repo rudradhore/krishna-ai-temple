@@ -1,59 +1,99 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import google.generativeai as genai
 import os
-from dotenv import load_dotenv
+import edge_tts
+import base64
+import tempfile
+import asyncio
+import re
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
-# --- 1. CONFIGURATION ---
 load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-if not GOOGLE_API_KEY:
-    print("⚠️ WARNING: Google API Key not found in .env file!")
-
-genai.configure(api_key=GOOGLE_API_KEY)
-
-# --- SMART MODEL SELECTION ---
-# This block automatically finds a working model for your key
-valid_model_name = "gemini-1.5-flash" # Default fallback
-try:
-    print("🔍 Searching for available AI models...")
-    for m in genai.list_models():
-        if 'generateContent' in m.supported_generation_methods:
-            if 'gemini' in m.name:
-                valid_model_name = m.name
-                print(f"✅ Found working model: {valid_model_name}")
-                break
-except Exception as e:
-    print(f"⚠️ Could not list models (using default): {e}")
-
-# Initialize the Brain with the found name
-model = genai.GenerativeModel(valid_model_name)
-
-from app.prompt import KRISHNA_SYSTEM_PROMPT
-
-# --- 2. APP SETUP ---
 app = FastAPI()
 
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class UserQuery(BaseModel):
+# Setup Gemini
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    print("⚠️ WARNING: GOOGLE_API_KEY not found in environment variables!")
+
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel('gemini-pro')
+
+# Import the Prompt
+try:
+    from app.prompt import KRISHNA_SYSTEM_PROMPT
+except ImportError:
+    KRISHNA_SYSTEM_PROMPT = "You are Krishna. Answer with wisdom."
+
+# Chat History (Simple in-memory)
+chat_history = []
+
+class ChatRequest(BaseModel):
     text: str
 
-# --- 3. THE CHAT ENDPOINT ---
+def is_hindi(text):
+    # Check for Devanagari characters
+    return bool(re.search(r'[\u0900-\u097F]', text))
+
 @app.post("/chat")
-async def chat(query: UserQuery):
-    print(f"User asked: {query.text}")
+async def chat_endpoint(request: ChatRequest):
     try:
-        full_prompt = f"{KRISHNA_SYSTEM_PROMPT}\nUser: {query.text}"
+        # 1. Get Answer from Gemini
+        history_context = "\n".join([f"{msg['role']}: {msg['text']}" for msg in chat_history[-4:]])
+        full_prompt = f"{KRISHNA_SYSTEM_PROMPT}\n\nRecent Chat:\n{history_context}\nUser: {request.text}\nKrishna:"
+        
         response = model.generate_content(full_prompt)
-        return {"reply": response.text}
+        reply_text = response.text
+        
+        # Save to history
+        chat_history.append({"role": "User", "text": request.text})
+        chat_history.append({"role": "Krishna", "text": reply_text})
+
+        # 2. Generate Audio (Edge TTS) - The Male Voice Logic
+        # Voices: 'en-IN-PrabhatNeural' (Indian English Male)
+        #         'hi-IN-MadhurNeural' (Hindi Male)
+        
+        voice = "en-IN-PrabhatNeural" # Default Male English
+        if is_hindi(reply_text):
+            voice = "hi-IN-MadhurNeural" # Default Male Hindi
+
+        communicate = edge_tts.Communicate(reply_text, voice)
+        
+        # Create a temporary file to store the audio
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_audio:
+            temp_filename = temp_audio.name
+            
+        await communicate.save(temp_filename)
+
+        # Read the file and convert to Base64 (to send over JSON)
+        with open(temp_filename, "rb") as audio_file:
+            audio_bytes = audio_file.read()
+            audio_base64 = base64.b64encode(audio_bytes).decode('utf-8')
+            
+        # Clean up temp file
+        os.remove(temp_filename)
+
+        return {
+            "reply": reply_text, 
+            "audio": audio_base64  # Sending the actual MP3 data
+        }
+
     except Exception as e:
-        print(f"Error details: {e}")
-        return {"reply": f"My connection is faint. Error: {str(e)}"}
+        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/")
+def home():
+    return {"message": "Krishna Brain is Running with Voice 🕉️"}
