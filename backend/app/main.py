@@ -31,7 +31,7 @@ if not api_key:
 genai.configure(api_key=api_key)
 
 # ---------------------------------------------------------
-# 🧠 SMART MODEL SELECTOR (The Fix)
+# 🧠 SMART MODEL SELECTOR (Updated for Gemini 2.5)
 # ---------------------------------------------------------
 model = None
 
@@ -50,8 +50,14 @@ def setup_model():
         # 2. Try to pick the best one
         chosen_model_name = None
         
-        # Priority List
-        priorities = ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']
+        # 🚀 UPDATED PRIORITY LIST based on your logs
+        priorities = [
+            'models/gemini-2.5-flash',       # First Choice (Newest/Fastest)
+            'models/gemini-2.0-flash',       # Second Choice
+            'models/gemini-flash-latest',    # Safe Alias
+            'models/gemini-2.5-pro',         # Powerful Backup
+            'models/gemini-pro'              # Old Backup
+        ]
         
         # Check if any priority model exists in the available list
         for p in priorities:
@@ -127,6 +133,7 @@ async def chat_endpoint(request: ChatRequest):
         # --- 2. GENERATE AUDIO (Edge TTS) ---
         audio_base64 = None
         try:
+            # Male Voice Logic
             voice = "en-IN-PrabhatNeural"
             if is_hindi(reply_text):
                 voice = "hi-IN-MadhurNeural"
@@ -157,4 +164,4 @@ async def chat_endpoint(request: ChatRequest):
 
 @app.get("/")
 def home():
-    return {"message": "Krishna Brain Online (Auto-Detect Mode) 🕉️"}
+    return {"message": "Krishna Brain Online (Gemini 2.5 Enabled) 🕉️"}

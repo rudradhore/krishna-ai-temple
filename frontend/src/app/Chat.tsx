@@ -29,7 +29,7 @@ export default function Chat() {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const isAudioEnabledRef = useRef(true); 
   const [isListening, setIsListening] = useState(false);
-  const audioPlayerRef = useRef<HTMLAudioElement | null>(null); // 🎵 New Player Ref
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -51,15 +51,6 @@ export default function Chat() {
     const savedCount = localStorage.getItem("japa_count");
     if (savedCount) setJapaCount(parseInt(savedCount));
   }, []);
-
-  // --- VOICE SETUP ---
-  const unlockAudio = () => {
-    // We don't need the speech synthesis unlocker anymore, 
-    // but we can play a silent sound on the audio player to wake it up.
-    if (audioPlayerRef.current) {
-        audioPlayerRef.current.play().catch(() => {}); 
-    }
-  };
 
   const countNamesInString = (text: string) => {
     const lowerText = text.toLowerCase();
@@ -115,6 +106,7 @@ export default function Chat() {
   }, [mode]); 
 
   const toggleMic = () => {
+    if (audioPlayerRef.current) audioPlayerRef.current.play().catch(() => {}); 
     if (!recognitionRef.current) return alert("Browser does not support voice.");
     if (isListening) { setIsListening(false); recognitionRef.current.stop(); } 
     else { setIsListening(true); try { recognitionRef.current.start(); } catch(e) {} }
@@ -131,13 +123,9 @@ export default function Chat() {
     }
   };
 
-  // --- 🎵 SERVER AUDIO PLAYER ---
   const playServerAudio = (base64Audio: string) => {
     if (!isAudioEnabledRef.current) return;
-
-    // Convert Base64 string to Audio
     const audioSrc = `data:audio/mp3;base64,${base64Audio}`;
-    
     if (audioPlayerRef.current) {
         audioPlayerRef.current.src = audioSrc;
         audioPlayerRef.current.play().catch(e => console.error("Audio play failed:", e));
@@ -163,12 +151,7 @@ export default function Chat() {
       });
       const data = await res.json();
       setMessages(prev => [...prev, { role: "ai", text: data.reply }]);
-      
-      // 🎵 Play the Audio sent by the server
-      if (data.audio) {
-        playServerAudio(data.audio);
-      }
-      
+      if (data.audio) playServerAudio(data.audio);
     } catch (error) { setMessages(prev => [...prev, { role: "ai", text: "Connection faint..." }]); } 
     finally { setLoading(false); }
   };
@@ -185,6 +168,18 @@ export default function Chat() {
 
   return (
     <div className="relative flex flex-col h-[100dvh] w-full bg-[#FDFBF7] font-sans">
+      
+      {/* 🌸 1. THE MISSING LOTUS BACKGROUND (RESTORED) */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        <svg viewBox="0 0 200 200" className="w-[120%] md:w-[600px] h-auto text-yellow-600 opacity-[0.08]" fill="currentColor">
+          <path d="M100 10 Q110 50 100 90 Q90 50 100 10 Z" />
+          <path d="M100 90 Q120 60 130 30 Q115 45 100 90 Z" />
+          <path d="M100 90 Q80 60 70 30 Q85 45 100 90 Z" />
+          <path d="M100 90 Q140 70 160 40 Q130 70 100 90 Z" />
+          <path d="M100 90 Q60 70 40 40 Q70 70 100 90 Z" />
+        </svg>
+      </div>
+
       <header className="flex-none z-50 bg-white/90 backdrop-blur-md border-b border-yellow-200 p-3 shadow-sm flex justify-between items-center sticky top-0">
         <div className="flex items-center gap-3">
             <span className="text-2xl">🪷</span>
@@ -197,7 +192,7 @@ export default function Chat() {
       </header>
 
       {mode === 'japa' ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-6 animate-in fade-in zoom-in duration-500">
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-6 animate-in fade-in zoom-in duration-500 z-10">
             <div><h2 className="text-gray-600 text-sm uppercase tracking-widest mb-2 font-semibold">Mantra Counter</h2><div className="text-8xl font-bold text-orange-600 drop-shadow-sm font-mono">{japaCount}</div></div>
             <div className="h-8 flex items-center justify-center text-lg font-medium">{isListening ? <span className="animate-pulse text-green-700 font-bold">Listening...</span> : <span className="text-gray-500">Mic Off</span>}</div>
             <div className="w-full max-w-xs h-16 bg-gray-200 rounded p-2 text-xs text-gray-800 overflow-hidden text-center mx-auto border border-gray-300">{debugTranscript || "Say 'Ram', 'Krishna', 'Hari'..."}</div>
@@ -210,7 +205,7 @@ export default function Chat() {
         </div>
       ) : (
         <>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 z-10">
                 {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] p-4 rounded-2xl shadow-md text-sm md:text-base font-medium ${m.role === 'user' ? 'bg-[#E6D0A1] text-gray-900 border border-yellow-300 rounded-br-none' : 'bg-white text-gray-900 border border-yellow-200 rounded-bl-none'}`}>{m.text}</div>
@@ -219,7 +214,7 @@ export default function Chat() {
                 {loading && <div className="text-yellow-700 text-sm animate-pulse px-4 font-semibold">Contemplating...</div>}
                 <div ref={messagesEndRef} className="h-2" />
             </div>
-            <div className="p-3 bg-white border-t border-yellow-200 shadow-lg">
+            <div className="p-3 bg-white border-t border-yellow-200 shadow-lg z-50">
                 <div className="flex gap-2 items-center bg-[#F9F7F2] p-2 rounded-full border border-yellow-300 shadow-inner">
                     <button onClick={toggleMic} className={`p-3 rounded-full shadow-sm ${isListening ? 'bg-red-600 text-white animate-pulse' : 'bg-white text-gray-600 border border-gray-200'}`}><Mic size={20} /></button>
                     <input className="flex-1 bg-transparent px-2 outline-none text-black placeholder-gray-500 font-medium" value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && sendMessage()} placeholder="Ask Krishna..." />
