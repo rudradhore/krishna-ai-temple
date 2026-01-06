@@ -1,7 +1,10 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
-import { Send, Volume2, VolumeX, Mic, MicOff, Hand, Sparkles } from "lucide-react";
 
+import { useState, useRef, useEffect } from "react";
+import { Send, Mic, MicOff, Volume2, VolumeX, Sparkles, Feather, BookOpen, Sun } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+// --- TYPES ---
 declare global {
   interface Window {
     SpeechRecognition: any;
@@ -9,50 +12,61 @@ declare global {
   }
 }
 
-export default function Chat() {
-  const [mode, setMode] = useState<'chat' | 'japa'>('chat');
+// --- VISUAL COMPONENTS ---
 
-  // --- STATE ---
+const LotusIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 200 200" className={className} fill="currentColor">
+    <path d="M100 10 Q110 50 100 90 Q90 50 100 10 Z" />
+    <path d="M100 90 Q120 60 130 30 Q115 45 100 90 Z" />
+    <path d="M100 90 Q80 60 70 30 Q85 45 100 90 Z" />
+    <path d="M100 90 Q140 70 160 40 Q130 70 100 90 Z" />
+    <path d="M100 90 Q60 70 40 40 Q70 70 100 90 Z" />
+  </svg>
+);
+
+const BreathingLotus = () => (
+  <div className="relative flex items-center justify-center">
+    <motion.div 
+      animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
+      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      className="absolute w-64 h-64 bg-sanctuary-gold/10 rounded-full blur-3xl"
+    />
+    <LotusIcon className="w-24 h-24 text-sanctuary-gold/80" />
+  </div>
+);
+
+// --- MAIN COMPONENT ---
+
+export default function Chat() {
+  // Navigation State
+  const [hasStarted, setHasStarted] = useState(false);
+  const [mode, setMode] = useState<'reflection' | 'mantra'>('reflection');
+
+  // Logic State
   const [messages, setMessages] = useState([
-    { role: "ai", text: "🌸 Namaste. I am Krishna. How may I guide your soul today?" }
+    { role: "ai", text: "Radhe Radhe. I am here. Let us find stillness together." }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  
-  // --- JAPA STATE ---
   const [japaCount, setJapaCount] = useState(0);
-  const [lastChant, setLastChant] = useState("");
-  const [debugTranscript, setDebugTranscript] = useState("");
-  const currentSentenceCountRef = useRef(0);
-
-  // --- AUDIO STATE ---
+  
+  // Audio/Voice State
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const isAudioEnabledRef = useRef(true); 
+  const isAudioEnabledRef = useRef(true);
   const [isListening, setIsListening] = useState(false);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
-  
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const currentSentenceCountRef = useRef(0);
 
-  // --- 📿 HOLY NAMES ---
-  const holyPatterns = [
-    "krishna", "krsna", "chris", "kris", "christ", "trishna", "krish",
-    "ram", "rama", "rum", "run", "wrong", "rom", "raam", "drum", "arm",
-    "hare", "hari", "hairy", "harry", "hurry", "hay", 
-    "govinda", "om", "home", "shiva", "shiver", "narayana"
-  ];
+  // --- LOGIC (Kept from previous robust version) ---
+  const holyPatterns = ["krishna", "krsna", "ram", "rama", "hare", "hari", "govinda", "om", "shiva", "narayana"];
 
   useEffect(() => {
-    const savedAudio = localStorage.getItem("krishna_audio");
-    if (savedAudio !== null) {
-      setIsAudioEnabled(savedAudio === "true");
-      isAudioEnabledRef.current = (savedAudio === "true");
-    }
     const savedCount = localStorage.getItem("japa_count");
     if (savedCount) setJapaCount(parseInt(savedCount));
   }, []);
 
-  // --- HELPER FUNCTIONS ---
   const countNamesInString = (text: string) => {
     const lowerText = text.toLowerCase();
     const pattern = new RegExp(holyPatterns.join("|"), "g");
@@ -60,277 +74,246 @@ export default function Chat() {
     return matches ? matches.length : 0;
   };
 
-  const toggleAudio = () => {
-    const newState = !isAudioEnabled;
-    setIsAudioEnabled(newState);
-    isAudioEnabledRef.current = newState;
-    localStorage.setItem("krishna_audio", String(newState));
-    if (!newState && audioPlayerRef.current) {
-        audioPlayerRef.current.pause();
-        audioPlayerRef.current.currentTime = 0;
-    }
-  };
-
-  // --- VOICE ENGINE ---
+  // Voice Engine
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
-        recognition.continuous = mode === 'japa'; 
-        recognition.lang = 'en-US'; 
+        recognition.continuous = mode === 'mantra';
+        recognition.lang = 'en-US';
         recognition.interimResults = true;
-        
+
         recognition.onstart = () => { setIsListening(true); currentSentenceCountRef.current = 0; };
         recognition.onend = () => {
-          if (mode === 'japa' && isListening) try { recognition.start(); } catch (e) { setIsListening(false); }
+          if (mode === 'mantra' && isListening) try { recognition.start(); } catch (e) { setIsListening(false); }
           else setIsListening(false);
           currentSentenceCountRef.current = 0;
         };
 
         recognition.onresult = (event: any) => {
-          const results = event.results;
-          const latestResult = results[results.length - 1];
-          const transcript = latestResult[0].transcript;
-          
-          if (mode === 'chat') {
-            if (latestResult.isFinal) setInput(transcript);
+          const transcript = event.results[event.results.length - 1][0].transcript;
+          if (mode === 'reflection') {
+            if (event.results[event.results.length - 1].isFinal) setInput(transcript);
           } else {
-            setDebugTranscript(transcript); 
-            const totalInCurrentStream = countNamesInString(transcript);
-            const newNames = totalInCurrentStream - currentSentenceCountRef.current;
+            const total = countNamesInString(transcript);
+            const newNames = total - currentSentenceCountRef.current;
             if (newNames > 0) {
               setJapaCount(prev => {
-                const newTotal = prev + newNames;
-                localStorage.setItem("japa_count", String(newTotal));
-                return newTotal;
+                const newVal = prev + newNames;
+                localStorage.setItem("japa_count", String(newVal));
+                return newVal;
               });
-              const words = transcript.trim().split(" ");
-              setLastChant(words[words.length - 1]);
               if (navigator.vibrate) navigator.vibrate(50);
-              currentSentenceCountRef.current = totalInCurrentStream;
+              currentSentenceCountRef.current = total;
             }
-            if (latestResult.isFinal) currentSentenceCountRef.current = 0;
+            if (event.results[event.results.length - 1].isFinal) currentSentenceCountRef.current = 0;
           }
         };
         recognitionRef.current = recognition;
       }
     }
-  }, [mode]); 
+  }, [mode]);
 
   const toggleMic = () => {
-    if (audioPlayerRef.current) audioPlayerRef.current.play().catch(() => {}); 
-    if (!recognitionRef.current) return alert("Browser does not support voice.");
-    if (isListening) { setIsListening(false); recognitionRef.current.stop(); } 
-    else { setIsListening(true); try { recognitionRef.current.start(); } catch(e) {} }
+    if (audioPlayerRef.current) audioPlayerRef.current.play().catch(() => {});
+    if (!recognitionRef.current) return alert("Voice not supported.");
+    if (isListening) { setIsListening(false); recognitionRef.current.stop(); }
+    else { setIsListening(true); try { recognitionRef.current.start(); } catch (e) {} }
   };
 
   const playServerAudio = (base64Audio: string) => {
     if (!isAudioEnabledRef.current) return;
-    const audioSrc = `data:audio/mp3;base64,${base64Audio}`;
+    const src = `data:audio/mp3;base64,${base64Audio}`;
     if (audioPlayerRef.current) {
-        audioPlayerRef.current.src = audioSrc;
-        audioPlayerRef.current.play().catch(e => console.error("Audio play failed:", e));
+        audioPlayerRef.current.src = src;
+        audioPlayerRef.current.play().catch(e => console.error(e));
     } else {
-        const audio = new Audio(audioSrc);
+        const audio = new Audio(src);
         audioPlayerRef.current = audio;
-        audio.play().catch(e => console.error("Audio play failed:", e));
+        audio.play().catch(e => console.error(e));
     }
   };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
-    const userText = input;
+    const text = input;
     setInput("");
-    setMessages(prev => [...prev, { role: "user", text: userText }]);
+    setMessages(prev => [...prev, { role: "user", text }]);
     setLoading(true);
-
     try {
       const res = await fetch("https://krishna-ai-temple.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: userText }),
+        body: JSON.stringify({ text }),
       });
       const data = await res.json();
       setMessages(prev => [...prev, { role: "ai", text: data.reply }]);
       if (data.audio) playServerAudio(data.audio);
-    } catch (error) { setMessages(prev => [...prev, { role: "ai", text: "Connection faint..." }]); } 
+    } catch (e) { setMessages(prev => [...prev, { role: "ai", text: "Peace. The connection is faint." }]); }
     finally { setLoading(false); }
   };
 
-  const manualCount = () => {
-    setJapaCount(prev => {
-      const newTotal = prev + 1;
-      localStorage.setItem("japa_count", String(newTotal));
-      return newTotal;
-    });
-    setLastChant("Tap");
-    if (navigator.vibrate) navigator.vibrate(30);
-  };
+  // --- RENDER: WELCOME SCREEN ---
+  if (!hasStarted) {
+    return (
+      <div className="h-[100dvh] w-full bg-sanctuary-white flex flex-col items-center justify-center relative overflow-hidden">
+        {/* Background Texture */}
+        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.5, ease: "easeOut" }}
+          className="z-10 flex flex-col items-center text-center space-y-8 p-6"
+        >
+          <BreathingLotus />
+          
+          <div className="space-y-4 max-w-md">
+            <h1 className="text-3xl md:text-4xl font-serif text-sanctuary-charcoal tracking-wide">
+              Jai Shri Krishna
+            </h1>
+            <p className="text-sanctuary-charcoal/60 font-sans text-sm md:text-base leading-relaxed">
+              This is a quiet space for reflection. <br/>
+              It is not a replacement for a Guru, but a companion on your path.
+            </p>
+          </div>
 
-  // --- RENDER ---
-  return (
-    <div className="relative flex flex-col h-[100dvh] w-full bg-[#FAF9F6] font-[family-name:var(--font-lato)] text-stone-800 overflow-hidden">
-      
-      {/* 🌫️ BACKGROUND TEXTURE */}
-      <div className="absolute inset-0 z-0 opacity-40 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] pointer-events-none mix-blend-multiply"></div>
-      
-      {/* 🪷 LOTUS WATERMARK (Subtle & Golden) */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-        <svg viewBox="0 0 200 200" className="w-[150%] md:w-[700px] h-auto text-amber-500/10 animate-spin-slow" style={{animationDuration: '60s'}} fill="currentColor">
-          <path d="M100 10 Q110 50 100 90 Q90 50 100 10 Z" />
-          <path d="M100 90 Q120 60 130 30 Q115 45 100 90 Z" />
-          <path d="M100 90 Q80 60 70 30 Q85 45 100 90 Z" />
-          <path d="M100 90 Q140 70 160 40 Q130 70 100 90 Z" />
-          <path d="M100 90 Q60 70 40 40 Q70 70 100 90 Z" />
-        </svg>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setHasStarted(true)}
+            className="mt-8 px-8 py-3 bg-sanctuary-charcoal text-sanctuary-white font-serif text-sm tracking-widest uppercase rounded-full shadow-lg shadow-stone-200 hover:bg-sanctuary-gold transition-colors duration-500"
+          >
+            Begin Reflection
+          </motion.button>
+        </motion.div>
+
+        <div className="absolute bottom-6 text-[10px] text-sanctuary-charcoal/30 font-sans tracking-[0.2em] uppercase">
+          Sarvam Shri Krishnarpanam Astu
+        </div>
       </div>
+    );
+  }
 
-      {/* 🏛️ HEADER (Glassmorphism) */}
-      <header className="flex-none z-50 bg-white/70 backdrop-blur-xl border-b border-amber-100 p-4 shadow-sm flex justify-between items-center sticky top-0">
-        <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center border border-amber-200 shadow-inner">
-                <span className="text-xl">🪷</span>
-            </div>
-            <div>
-                <h1 className="text-xl font-[family-name:var(--font-cinzel)] font-bold text-amber-900 tracking-wide">Krishna AI</h1>
-                <p className="text-[10px] uppercase tracking-widest text-amber-700/60 font-bold hidden sm:block">Digital Temple</p>
-            </div>
-        </div>
-        <div className="flex gap-2">
-             {/* MODE SWITCHER PILL */}
-            <div className="flex bg-stone-100 rounded-full p-1 border border-stone-200 shadow-inner">
-                <button 
-                    onClick={() => setMode('chat')}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${mode === 'chat' ? 'bg-white text-amber-800 shadow-sm border border-stone-100' : 'text-stone-400 hover:text-stone-600'}`}
-                >
-                    Chat
-                </button>
-                <button 
-                    onClick={() => setMode('japa')}
-                    className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${mode === 'japa' ? 'bg-orange-50 text-orange-700 shadow-sm border border-orange-100' : 'text-stone-400 hover:text-stone-600'}`}
-                >
-                    Japa
-                </button>
-            </div>
-            {/* AUDIO TOGGLE */}
-            <button onClick={toggleAudio} className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all ${isAudioEnabled ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>
-                {isAudioEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-            </button>
-        </div>
-      </header>
+  // --- RENDER: SANCTUARY (CHAT/JAPA) ---
+  return (
+    <div className="h-[100dvh] w-full bg-sanctuary-white flex flex-col font-sans relative">
+       {/* Background */}
+       <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] pointer-events-none" />
+       
+       {/* Watermark */}
+       <div className="absolute bottom-4 right-4 opacity-5 pointer-events-none">
+          <LotusIcon className="w-48 h-48 text-sanctuary-gold" />
+       </div>
 
-      {/* === JAPA MODE (MANDALA DESIGN) === */}
-      {mode === 'japa' ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-10 z-10 relative">
-            
-            {/* The Glowing Ring */}
-            <div className="relative group">
-                <div className="absolute inset-0 bg-orange-500/20 blur-3xl rounded-full animate-pulse"></div>
-                <div className="w-64 h-64 md:w-80 md:h-80 rounded-full border-[1px] border-orange-200 bg-white/50 backdrop-blur-sm shadow-2xl flex flex-col items-center justify-center relative overflow-hidden">
-                    {/* Inner Decorative Ring */}
-                    <div className="absolute inset-2 rounded-full border border-dashed border-orange-300/50 opacity-50 animate-spin-slow"></div>
-                    
-                    <h2 className="text-amber-900/40 text-xs font-[family-name:var(--font-cinzel)] uppercase tracking-[0.3em] mb-4">Mantra Count</h2>
-                    <div className="text-7xl md:text-8xl font-[family-name:var(--font-cinzel)] font-bold text-orange-600 drop-shadow-sm transition-all duration-300 transform scale-100">
-                        {japaCount}
-                    </div>
-                    {lastChant && <div className="text-orange-500 font-bold mt-2 animate-bounce uppercase tracking-wider text-sm">{lastChant}</div>}
-                </div>
-            </div>
+       {/* HEADER */}
+       <header className="flex-none z-20 px-6 py-4 flex justify-between items-center bg-sanctuary-white/80 backdrop-blur-sm sticky top-0">
+          <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity">
+            <LotusIcon className="w-6 h-6 text-sanctuary-gold" />
+            <span className="text-sm font-serif font-semibold tracking-wider text-sanctuary-charcoal">KRISHNA AI</span>
+          </div>
 
-            {/* Debug & Status */}
-            <div className="space-y-2">
-                <div className="h-6 flex items-center justify-center text-sm font-medium">
-                    {isListening 
-                        ? <span className="flex items-center gap-2 text-green-700 bg-green-50 px-3 py-1 rounded-full border border-green-200"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>Listening...</span> 
-                        : <span className="text-stone-400">Mic is Off</span>}
-                </div>
-                <div className="text-xs text-stone-400 font-mono bg-white/50 px-2 py-1 rounded border border-stone-100 inline-block min-w-[150px]">
-                    {debugTranscript || "Say 'Krishna'..."}
-                </div>
-            </div>
+          <div className="flex items-center gap-4">
+             {/* Mode Toggles */}
+             <div className="flex bg-sanctuary-mist rounded-full p-1">
+                <button onClick={() => setMode('reflection')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${mode === 'reflection' ? 'bg-white shadow-sm text-sanctuary-charcoal' : 'text-sanctuary-charcoal/40'}`}>Reflection</button>
+                <button onClick={() => setMode('mantra')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${mode === 'mantra' ? 'bg-white shadow-sm text-sanctuary-gold' : 'text-sanctuary-charcoal/40'}`}>Mantra</button>
+             </div>
+             
+             {/* Audio */}
+             <button 
+               onClick={() => { setIsAudioEnabled(!isAudioEnabled); isAudioEnabledRef.current = !isAudioEnabled; }}
+               className="text-sanctuary-charcoal/40 hover:text-sanctuary-gold transition-colors"
+             >
+               {isAudioEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+             </button>
+          </div>
+       </header>
 
-            {/* Controls */}
-            <div className="flex gap-8 items-center">
-                <button 
-                    onClick={toggleMic}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all transform hover:scale-105 active:scale-95 ${isListening ? 'bg-gradient-to-br from-red-500 to-red-600 text-white shadow-red-200 ring-4 ring-red-100' : 'bg-white text-stone-600 border border-stone-200'}`}
-                >
-                    {isListening ? <MicOff size={28} /> : <Mic size={28} />}
-                </button>
-                
-                <button 
-                    onClick={manualCount}
-                    className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 text-white flex items-center justify-center shadow-lg shadow-orange-200 hover:scale-105 active:scale-95 transition-all"
-                >
-                    <Hand size={28} />
-                </button>
-            </div>
-            
-            <button onClick={() => { setJapaCount(0); localStorage.setItem("japa_count", "0"); }} className="text-[10px] text-stone-400 hover:text-red-500 uppercase tracking-widest transition-colors">
-                Reset Counter
-            </button>
-        </div>
-      ) : (
-        /* === CHAT MODE (PREMIUM UI) === */
-        <>
-            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 z-10 scroll-smooth">
-                {messages.map((m, i) => (
-                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-4 duration-500`}>
-                    
-                    {/* AVATAR FOR KRISHNA */}
-                    {m.role === 'ai' && (
-                        <div className="w-8 h-8 rounded-full bg-amber-100 flex-shrink-0 mr-3 flex items-center justify-center border border-amber-200 text-sm mt-1">🪷</div>
-                    )}
+       {/* CONTENT AREA */}
+       <main className="flex-1 overflow-y-auto z-10 scroll-smooth">
+         {mode === 'reflection' ? (
+           <div className="max-w-2xl mx-auto px-6 py-8 space-y-8">
+             {messages.map((m, i) => (
+               <motion.div 
+                 key={i}
+                 initial={{ opacity: 0, y: 10 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 transition={{ duration: 0.6 }}
+                 className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
+               >
+                 <div className={`max-w-[85%] leading-relaxed ${
+                   m.role === 'user' 
+                     ? 'bg-sanctuary-mist px-6 py-4 rounded-2xl rounded-br-none text-sanctuary-charcoal text-sm shadow-sm' 
+                     : 'text-sanctuary-charcoal font-serif text-lg md:text-xl border-l-2 border-sanctuary-gold pl-4 py-2'
+                 }`}>
+                   {m.text}
+                 </div>
+               </motion.div>
+             ))}
+             {loading && (
+               <div className="flex items-center gap-2 text-sanctuary-gold text-xs uppercase tracking-widest pl-4 animate-pulse">
+                 <Feather size={12} /> Contemplating...
+               </div>
+             )}
+             <div ref={messagesEndRef} className="h-4" />
+           </div>
+         ) : (
+           /* MANTRA MODE */
+           <div className="h-full flex flex-col items-center justify-center text-center space-y-12">
+              <div className="relative">
+                 {/* Glowing Ring */}
+                 <div className={`w-64 h-64 rounded-full border border-sanctuary-gold/20 flex items-center justify-center relative ${isListening ? 'animate-pulse shadow-[0_0_40px_rgba(201,164,76,0.2)]' : ''}`}>
+                    <div className="absolute inset-0 rounded-full border border-dotted border-sanctuary-gold/40 animate-[spin_60s_linear_infinite]" />
+                    <span className="font-serif text-6xl text-sanctuary-gold">{japaCount}</span>
+                 </div>
+              </div>
+              <div className="space-y-2">
+                 <p className="text-sanctuary-charcoal/50 text-xs tracking-widest uppercase">
+                    {isListening ? "Listening to your chant..." : "Tap mic to begin"}
+                 </p>
+              </div>
+           </div>
+         )}
+       </main>
 
-                    <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl shadow-sm text-sm md:text-base leading-relaxed relative
-                        ${m.role === 'user' 
-                            ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-br-none shadow-orange-100' 
-                            : 'bg-white border border-stone-100 text-stone-800 rounded-bl-none shadow-stone-100'
-                        }`}>
-                        {m.text}
-                    </div>
-                </div>
-                ))}
-                
-                {loading && (
-                    <div className="flex justify-start ml-11">
-                        <div className="flex items-center gap-2 text-amber-600/60 bg-white/50 px-4 py-2 rounded-full border border-amber-100 text-xs animate-pulse">
-                            <Sparkles size={14} />
-                            <span className="uppercase tracking-widest font-bold">Contemplating...</span>
-                        </div>
-                    </div>
-                )}
-                <div ref={messagesEndRef} className="h-4" />
-            </div>
+       {/* FOOTER / INPUT */}
+       <footer className="flex-none z-20 p-6 bg-gradient-to-t from-sanctuary-white via-sanctuary-white to-transparent">
+         <div className="max-w-2xl mx-auto flex items-center gap-4">
+           
+           {/* Mic Button (Minimal) */}
+           <button 
+             onClick={toggleMic}
+             className={`p-3 rounded-full transition-all duration-500 ${
+               isListening 
+                 ? 'bg-sanctuary-gold/10 text-sanctuary-gold ring-1 ring-sanctuary-gold/50' 
+                 : 'text-sanctuary-charcoal/30 hover:text-sanctuary-gold'
+             }`}
+           >
+             {isListening ? <Mic size={20} /> : <MicOff size={20} />}
+           </button>
 
-            {/* FLOATING INPUT BAR */}
-            <div className="p-4 z-50 bg-gradient-to-t from-stone-50 via-stone-50/90 to-transparent">
-                <div className="max-w-3xl mx-auto flex gap-2 items-center bg-white/80 backdrop-blur-md p-2 rounded-full border border-stone-200 shadow-xl shadow-stone-200/50 hover:shadow-2xl transition-all">
-                    <button onClick={toggleMic} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'}`}>
-                         <Mic size={20} />
-                    </button>
-                    
-                    <input 
-                        className="flex-1 bg-transparent px-3 py-2 outline-none text-stone-800 placeholder-stone-400 font-medium" 
-                        value={input} 
-                        onChange={(e) => setInput(e.target.value)} 
-                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()} 
-                        placeholder="Ask Krishna..." 
-                    />
-                    
-                    <button 
-                        onClick={sendMessage} 
-                        disabled={loading} 
-                        className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-full shadow-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                        <Send size={18} />
-                    </button>
-                </div>
-            </div>
-        </>
-      )}
+           {mode === 'reflection' && (
+             <div className="flex-1 relative">
+               <input 
+                 className="w-full bg-transparent border-b border-sanctuary-charcoal/10 py-3 px-2 text-sanctuary-charcoal focus:outline-none focus:border-sanctuary-gold/50 transition-colors placeholder:text-sanctuary-charcoal/20 font-sans"
+                 placeholder="Share your burden..."
+                 value={input}
+                 onChange={(e) => setInput(e.target.value)}
+                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+               />
+               <button 
+                 onClick={sendMessage}
+                 disabled={loading || !input.trim()}
+                 className="absolute right-0 top-3 text-sanctuary-charcoal/30 hover:text-sanctuary-gold disabled:opacity-0 transition-all"
+               >
+                 <Send size={18} />
+               </button>
+             </div>
+           )}
+         </div>
+       </footer>
     </div>
   );
 }
