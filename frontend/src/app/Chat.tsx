@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Mic, MicOff, Volume2, VolumeX, Sparkles, Feather, BookOpen, Sun } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Send, Mic, MicOff, Volume2, VolumeX, Feather } from "lucide-react"; // 🧹 Cleaned imports
+import { motion } from "framer-motion";
 
 // --- TYPES ---
 declare global {
@@ -59,7 +59,7 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const currentSentenceCountRef = useRef(0);
 
-  // --- LOGIC (Kept from previous robust version) ---
+  // --- LOGIC ---
   const holyPatterns = ["krishna", "krsna", "ram", "rama", "hare", "hari", "govinda", "om", "shiva", "narayana"];
 
   useEffect(() => {
