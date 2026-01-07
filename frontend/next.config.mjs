@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  // 🛑 Force Vercel to ignore errors and just build
+  // 🛑 Ignore errors so Vercel builds successfully
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -10,4 +9,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
