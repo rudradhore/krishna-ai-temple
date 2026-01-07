@@ -1,5 +1,9 @@
-import Chat from "./Chat";
+import Chat from "./Chat"; // Ensure the 'C' is Capitalized like the file name!
 
 export default function Home() {
-  return <Chat />;
+  return (
+    <main>
+      <Chat />
+    </main>
+  );
 }
