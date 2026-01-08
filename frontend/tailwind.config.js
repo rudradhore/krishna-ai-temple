@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class', // 🌙 THIS ENABLES THE TOGGLE
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -9,11 +10,16 @@ module.exports = {
     extend: {
       colors: {
         sanctuary: {
-          white: "#FAFAF7",
-          gold: "#C9A44C",
-          charcoal: "#2E2E2E",
-          stone: "#E5E5E0",
-          mist: "#F2F0E9",
+          white: "#FAFAF7",      // Light Mode Background (Cream)
+          gold: "#C9A44C",       // Accents
+          charcoal: "#2E2E2E",   // Light Mode Text
+          stone: "#E5E5E0",      // Light Mode Borders
+          mist: "#F2F0E9",       // Light Mode Bubbles
+          
+          // 🌑 DARK MODE COLORS
+          midnight: "#121212",   // Deepest background
+          obsidian: "#1E1E1E",   // Secondary background
+          starlight: "#EAEAEA",  // Dark Mode Text
         },
       },
       fontFamily: {
