@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: 'class', // 🌙 THIS ENABLES THE TOGGLE
+  darkMode: 'class',
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,16 +10,16 @@ module.exports = {
     extend: {
       colors: {
         sanctuary: {
-          white: "#FAFAF7",      // Light Mode Background (Cream)
-          gold: "#C9A44C",       // Accents
-          charcoal: "#2E2E2E",   // Light Mode Text
-          stone: "#E5E5E0",      // Light Mode Borders
-          mist: "#F2F0E9",       // Light Mode Bubbles
+          white: "#FDFBF7",      // Brighter Cream for Light Mode
+          gold: "#B8860B",       // Darker Gold for better visibility
+          charcoal: "#1A1A1A",   // Near-black for sharp text
+          stone: "#EBEBE6",      // Visible button background (Light)
+          mist: "#F2F0E9",       // Message bubble (Light)
           
-          // 🌑 DARK MODE COLORS
-          midnight: "#121212",   // Deepest background
-          obsidian: "#1E1E1E",   // Secondary background
-          starlight: "#EAEAEA",  // Dark Mode Text
+          // 🌑 DARK MODE (High Contrast)
+          midnight: "#0F0F0F",   // True Black background
+          obsidian: "#1F1F1F",   // Visible button background (Dark)
+          starlight: "#F0F0F0",  // Bright White text
         },
       },
       fontFamily: {
@@ -29,12 +29,6 @@ module.exports = {
       animation: {
         "spin-slow": "spin 60s linear infinite",
         "breathe": "breathe 6s ease-in-out infinite",
-      },
-      keyframes: {
-        breathe: {
-          "0%, 100%": { opacity: "0.4", transform: "scale(0.98)" },
-          "50%": { opacity: "0.8", transform: "scale(1.02)" },
-        }
       },
     },
   },

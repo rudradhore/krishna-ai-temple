@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Mic, MicOff, Volume2, VolumeX, Feather, Moon, Sun } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, Feather, Moon, Sun, MessageCircle, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 
 // --- TYPES ---
@@ -29,20 +29,17 @@ const BreathingLotus = () => (
     <motion.div 
       animate={{ scale: [1, 1.1, 1], opacity: [0.3, 0.6, 0.3] }}
       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-      className="absolute w-64 h-64 bg-sanctuary-gold/10 dark:bg-sanctuary-gold/5 rounded-full blur-3xl"
+      className="absolute w-64 h-64 bg-sanctuary-gold/20 dark:bg-sanctuary-gold/10 rounded-full blur-3xl"
     />
-    <LotusIcon className="w-24 h-24 text-sanctuary-gold/80" />
+    <LotusIcon className="w-32 h-32 text-sanctuary-gold" />
   </div>
 );
 
 // --- MAIN COMPONENT ---
 
 export default function Chat() {
-  // Navigation State
   const [hasStarted, setHasStarted] = useState(false);
   const [mode, setMode] = useState<'reflection' | 'mantra'>('reflection');
-  
-  // Theme State
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Logic State
@@ -53,7 +50,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [japaCount, setJapaCount] = useState(0);
   
-  // Audio/Voice State
+  // Audio State
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const isAudioEnabledRef = useRef(true);
   const [isListening, setIsListening] = useState(false);
@@ -64,7 +61,6 @@ export default function Chat() {
 
   // --- THEME ENGINE ---
   useEffect(() => {
-    // Check local storage or system preference on load
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme === "dark" || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
       setIsDarkMode(true);
@@ -73,8 +69,6 @@ export default function Chat() {
       setIsDarkMode(false);
       document.documentElement.classList.remove('dark');
     }
-    
-    // Load Japa count
     const savedCount = localStorage.getItem("japa_count");
     if (savedCount) setJapaCount(parseInt(savedCount));
   }, []);
@@ -101,7 +95,6 @@ export default function Chat() {
     return matches ? matches.length : 0;
   };
 
-  // Voice Engine
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -184,13 +177,16 @@ export default function Chat() {
   // --- RENDER: WELCOME SCREEN ---
   if (!hasStarted) {
     return (
-      <div className="h-[100dvh] w-full bg-sanctuary-white dark:bg-sanctuary-midnight flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-1000">
-        {/* Background Texture (Inverted for Dark Mode) */}
+      <div className="h-[100dvh] w-full bg-sanctuary-white dark:bg-sanctuary-midnight flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-500">
         <div className="absolute inset-0 opacity-20 dark:opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
         
+        {/* TOP RIGHT CONTROLS - FIXED VISIBILITY */}
         <div className="absolute top-6 right-6 z-20">
-           <button onClick={toggleTheme} className="p-2 rounded-full text-sanctuary-charcoal dark:text-sanctuary-gold hover:bg-black/5 dark:hover:bg-white/10 transition-all">
-             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+           <button 
+             onClick={toggleTheme} 
+             className="w-10 h-10 flex items-center justify-center rounded-full bg-sanctuary-stone dark:bg-sanctuary-obsidian text-sanctuary-charcoal dark:text-sanctuary-gold shadow-sm border border-black/5 dark:border-white/10 hover:scale-105 transition-all"
+           >
+             {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
            </button>
         </div>
 
@@ -203,12 +199,11 @@ export default function Chat() {
           <BreathingLotus />
           
           <div className="space-y-4 max-w-md">
-            <h1 className="text-3xl md:text-4xl font-serif text-sanctuary-charcoal dark:text-sanctuary-starlight tracking-wide">
-              Jai Shri Krishna
+            <h1 className="text-4xl md:text-5xl font-serif text-sanctuary-charcoal dark:text-sanctuary-starlight tracking-wide">
+              Krishna AI
             </h1>
-            <p className="text-sanctuary-charcoal/60 dark:text-sanctuary-starlight/60 font-sans text-sm md:text-base leading-relaxed">
-              This is a quiet space for reflection. <br/>
-              It is not a replacement for a Guru, but a companion on your path.
+            <p className="text-sanctuary-charcoal/70 dark:text-sanctuary-starlight/70 font-sans text-base leading-relaxed">
+              Your digital sanctuary for wisdom & reflection.
             </p>
           </div>
 
@@ -216,55 +211,60 @@ export default function Chat() {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => setHasStarted(true)}
-            className="mt-8 px-8 py-3 bg-sanctuary-charcoal dark:bg-sanctuary-gold text-sanctuary-white dark:text-sanctuary-midnight font-serif text-sm tracking-widest uppercase rounded-full shadow-lg shadow-stone-200 dark:shadow-none hover:opacity-90 transition-all duration-500"
+            className="mt-8 px-10 py-4 bg-sanctuary-charcoal dark:bg-sanctuary-gold text-sanctuary-white dark:text-sanctuary-midnight font-serif text-sm tracking-[0.2em] uppercase rounded-full shadow-xl hover:shadow-2xl transition-all"
           >
-            Begin Reflection
+            Enter Temple
           </motion.button>
         </motion.div>
-
-        <div className="absolute bottom-6 text-[10px] text-sanctuary-charcoal/30 dark:text-sanctuary-starlight/20 font-sans tracking-[0.2em] uppercase">
-          Sarvam Shri Krishnarpanam Astu
-        </div>
       </div>
     );
   }
 
   // --- RENDER: SANCTUARY (CHAT/JAPA) ---
   return (
-    <div className="h-[100dvh] w-full bg-sanctuary-white dark:bg-sanctuary-midnight flex flex-col font-sans relative transition-colors duration-700">
-       {/* Background */}
+    <div className="h-[100dvh] w-full bg-sanctuary-white dark:bg-sanctuary-midnight flex flex-col font-sans relative transition-colors duration-500">
        <div className="absolute inset-0 opacity-30 dark:opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] pointer-events-none" />
        
-       {/* Watermark */}
        <div className="absolute bottom-4 right-4 opacity-5 pointer-events-none">
           <LotusIcon className="w-48 h-48 text-sanctuary-gold" />
        </div>
 
-       {/* HEADER */}
-       <header className="flex-none z-20 px-6 py-4 flex justify-between items-center bg-sanctuary-white/80 dark:bg-sanctuary-midnight/80 backdrop-blur-sm sticky top-0 border-b border-transparent dark:border-sanctuary-obsidian transition-colors duration-700">
-          <div className="flex items-center gap-3 opacity-80 hover:opacity-100 transition-opacity">
-            <LotusIcon className="w-6 h-6 text-sanctuary-gold" />
-            <span className="text-sm font-serif font-semibold tracking-wider text-sanctuary-charcoal dark:text-sanctuary-starlight">KRISHNA AI</span>
+       {/* HEADER - RESPONSIVE */}
+       <header className="flex-none z-20 px-4 py-3 md:px-6 md:py-4 flex justify-between items-center bg-sanctuary-white/90 dark:bg-sanctuary-midnight/90 backdrop-blur-md sticky top-0 border-b border-black/5 dark:border-white/5 transition-colors">
+          <div className="flex items-center gap-2 md:gap-3">
+            <LotusIcon className="w-6 h-6 md:w-8 md:h-8 text-sanctuary-gold" />
+            <span className="text-sm md:text-lg font-serif font-bold tracking-widest text-sanctuary-charcoal dark:text-sanctuary-starlight">KRISHNA</span>
           </div>
 
-          <div className="flex items-center gap-4">
-             {/* Mode Toggles */}
-             <div className="flex bg-sanctuary-mist dark:bg-sanctuary-obsidian rounded-full p-1 transition-colors">
-                <button onClick={() => setMode('reflection')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${mode === 'reflection' ? 'bg-white dark:bg-sanctuary-midnight shadow-sm text-sanctuary-charcoal dark:text-sanctuary-starlight' : 'text-sanctuary-charcoal/40 dark:text-sanctuary-starlight/40'}`}>Reflection</button>
-                <button onClick={() => setMode('mantra')} className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all duration-300 ${mode === 'mantra' ? 'bg-white dark:bg-sanctuary-midnight shadow-sm text-sanctuary-gold' : 'text-sanctuary-charcoal/40 dark:text-sanctuary-starlight/40'}`}>Mantra</button>
+          <div className="flex items-center gap-2 md:gap-3">
+             {/* MODE SWITCHER (Responsive) */}
+             <div className="flex bg-sanctuary-stone dark:bg-sanctuary-obsidian rounded-full p-1 border border-black/5 dark:border-white/5">
+                <button 
+                   onClick={() => setMode('reflection')} 
+                   className={`px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase transition-all ${mode === 'reflection' ? 'bg-white dark:bg-sanctuary-midnight shadow-sm text-sanctuary-charcoal dark:text-sanctuary-starlight' : 'text-sanctuary-charcoal/50 dark:text-sanctuary-starlight/50'}`}
+                >
+                   <span className="hidden md:inline">Reflection</span>
+                   <span className="md:hidden">Chat</span>
+                </button>
+                <button 
+                   onClick={() => setMode('mantra')} 
+                   className={`px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold uppercase transition-all ${mode === 'mantra' ? 'bg-white dark:bg-sanctuary-midnight shadow-sm text-sanctuary-gold' : 'text-sanctuary-charcoal/50 dark:text-sanctuary-starlight/50'}`}
+                >
+                   <span className="hidden md:inline">Mantra</span>
+                   <span className="md:hidden">Chant</span>
+                </button>
              </div>
              
-             {/* Theme Toggle */}
-             <button onClick={toggleTheme} className="text-sanctuary-charcoal/40 dark:text-sanctuary-starlight/40 hover:text-sanctuary-gold transition-colors">
-               {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+             {/* TOGGLES (Circle Buttons) */}
+             <button onClick={toggleTheme} className="w-9 h-9 flex items-center justify-center rounded-full bg-sanctuary-stone dark:bg-sanctuary-obsidian text-sanctuary-charcoal dark:text-sanctuary-gold border border-black/5 dark:border-white/5">
+               {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
              </button>
 
-             {/* Audio */}
              <button 
                onClick={() => { setIsAudioEnabled(!isAudioEnabled); isAudioEnabledRef.current = !isAudioEnabled; }}
-               className="text-sanctuary-charcoal/40 dark:text-sanctuary-starlight/40 hover:text-sanctuary-gold transition-colors"
+               className={`w-9 h-9 flex items-center justify-center rounded-full border border-black/5 dark:border-white/5 ${isAudioEnabled ? 'bg-sanctuary-gold/10 text-sanctuary-gold border-sanctuary-gold/20' : 'bg-sanctuary-stone dark:bg-sanctuary-obsidian text-sanctuary-charcoal/50 dark:text-sanctuary-starlight/50'}`}
              >
-               {isAudioEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+               {isAudioEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
              </button>
           </div>
        </header>
@@ -272,18 +272,18 @@ export default function Chat() {
        {/* CONTENT AREA */}
        <main className="flex-1 overflow-y-auto z-10 scroll-smooth">
          {mode === 'reflection' ? (
-           <div className="max-w-2xl mx-auto px-6 py-8 space-y-8">
+           <div className="max-w-2xl mx-auto px-4 py-6 md:px-6 md:py-8 space-y-6">
              {messages.map((m, i) => (
                <motion.div 
                  key={i}
                  initial={{ opacity: 0, y: 10 }}
                  animate={{ opacity: 1, y: 0 }}
-                 transition={{ duration: 0.6 }}
+                 transition={{ duration: 0.4 }}
                  className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                >
-                 <div className={`max-w-[85%] leading-relaxed transition-colors ${
+                 <div className={`max-w-[85%] md:max-w-[80%] leading-relaxed transition-colors ${
                    m.role === 'user' 
-                     ? 'bg-sanctuary-mist dark:bg-sanctuary-obsidian px-6 py-4 rounded-2xl rounded-br-none text-sanctuary-charcoal dark:text-sanctuary-starlight text-sm shadow-sm' 
+                     ? 'bg-sanctuary-mist dark:bg-sanctuary-obsidian px-5 py-3 rounded-2xl rounded-br-none text-sanctuary-charcoal dark:text-sanctuary-starlight text-sm md:text-base shadow-sm border border-black/5 dark:border-white/5' 
                      : 'text-sanctuary-charcoal dark:text-sanctuary-starlight font-serif text-lg md:text-xl border-l-2 border-sanctuary-gold pl-4 py-2'
                  }`}>
                    {m.text}
@@ -291,7 +291,7 @@ export default function Chat() {
                </motion.div>
              ))}
              {loading && (
-               <div className="flex items-center gap-2 text-sanctuary-gold text-xs uppercase tracking-widest pl-4 animate-pulse">
+               <div className="flex items-center gap-2 text-sanctuary-gold text-xs uppercase tracking-widest pl-4 animate-pulse font-bold">
                  <Feather size={12} /> Contemplating...
                </div>
              )}
@@ -302,41 +302,43 @@ export default function Chat() {
            <div className="h-full flex flex-col items-center justify-center text-center space-y-12">
               <div className="relative">
                  {/* Glowing Ring */}
-                 <div className={`w-64 h-64 rounded-full border border-sanctuary-gold/20 flex items-center justify-center relative ${isListening ? 'animate-pulse shadow-[0_0_40px_rgba(201,164,76,0.2)]' : ''}`}>
+                 <div className={`w-64 h-64 md:w-80 md:h-80 rounded-full border border-sanctuary-gold/20 flex items-center justify-center relative transition-all ${isListening ? 'animate-pulse shadow-[0_0_50px_rgba(184,134,11,0.3)]' : ''}`}>
                     <div className="absolute inset-0 rounded-full border border-dotted border-sanctuary-gold/40 animate-[spin_60s_linear_infinite]" />
-                    <span className="font-serif text-6xl text-sanctuary-gold">{japaCount}</span>
+                    <span className="font-serif text-6xl md:text-8xl text-sanctuary-gold">{japaCount}</span>
                  </div>
               </div>
-              <div className="space-y-2">
-                 <p className="text-sanctuary-charcoal/50 dark:text-sanctuary-starlight/50 text-xs tracking-widest uppercase">
-                    {isListening ? "Listening to your chant..." : "Tap mic to begin"}
+              <div className="space-y-3">
+                 <p className="text-sanctuary-charcoal/50 dark:text-sanctuary-starlight/50 text-xs tracking-widest uppercase font-bold">
+                    {isListening ? "Listening..." : "Tap mic to chant"}
                  </p>
+                 <div className="text-xs text-sanctuary-charcoal/30 dark:text-sanctuary-starlight/30">
+                   "Hare Krishna, Hare Rama"
+                 </div>
               </div>
            </div>
          )}
        </main>
 
        {/* FOOTER / INPUT */}
-       <footer className="flex-none z-20 p-6 bg-gradient-to-t from-sanctuary-white dark:from-sanctuary-midnight via-sanctuary-white dark:via-sanctuary-midnight to-transparent transition-colors duration-700">
-         <div className="max-w-2xl mx-auto flex items-center gap-4">
+       <footer className="flex-none z-20 p-4 md:p-6 bg-gradient-to-t from-sanctuary-white dark:from-sanctuary-midnight via-sanctuary-white dark:via-sanctuary-midnight to-transparent transition-colors">
+         <div className="max-w-2xl mx-auto flex items-center gap-3">
            
-           {/* Mic Button (Minimal) */}
            <button 
              onClick={toggleMic}
-             className={`p-3 rounded-full transition-all duration-500 ${
+             className={`p-3 rounded-full transition-all duration-300 shadow-md ${
                isListening 
-                 ? 'bg-sanctuary-gold/10 text-sanctuary-gold ring-1 ring-sanctuary-gold/50' 
-                 : 'text-sanctuary-charcoal/30 dark:text-sanctuary-starlight/30 hover:text-sanctuary-gold'
+                 ? 'bg-red-500 text-white animate-pulse' 
+                 : 'bg-sanctuary-stone dark:bg-sanctuary-obsidian text-sanctuary-charcoal dark:text-sanctuary-starlight border border-black/5 dark:border-white/5'
              }`}
            >
              {isListening ? <Mic size={20} /> : <MicOff size={20} />}
            </button>
 
            {mode === 'reflection' && (
-             <div className="flex-1 relative">
+             <div className="flex-1 relative group">
                <input 
-                 className="w-full bg-transparent border-b border-sanctuary-charcoal/10 dark:border-sanctuary-starlight/10 py-3 px-2 text-sanctuary-charcoal dark:text-sanctuary-starlight focus:outline-none focus:border-sanctuary-gold/50 transition-colors placeholder:text-sanctuary-charcoal/20 dark:placeholder:text-sanctuary-starlight/20 font-sans"
-                 placeholder="Share your burden..."
+                 className="w-full bg-sanctuary-stone/50 dark:bg-sanctuary-obsidian/50 rounded-full border-none py-3 px-4 text-sanctuary-charcoal dark:text-sanctuary-starlight focus:ring-1 focus:ring-sanctuary-gold/50 transition-all placeholder:text-sanctuary-charcoal/30 dark:placeholder:text-sanctuary-starlight/30 font-sans text-sm md:text-base"
+                 placeholder="Share your heart..."
                  value={input}
                  onChange={(e) => setInput(e.target.value)}
                  onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
@@ -344,9 +346,9 @@ export default function Chat() {
                <button 
                  onClick={sendMessage}
                  disabled={loading || !input.trim()}
-                 className="absolute right-0 top-3 text-sanctuary-charcoal/30 dark:text-sanctuary-starlight/30 hover:text-sanctuary-gold disabled:opacity-0 transition-all"
+                 className="absolute right-2 top-2 p-1.5 bg-sanctuary-charcoal dark:bg-sanctuary-gold text-white dark:text-sanctuary-midnight rounded-full hover:scale-105 disabled:opacity-0 transition-all shadow-sm"
                >
-                 <Send size={18} />
+                 <Send size={16} />
                </button>
              </div>
            )}
