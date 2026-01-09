@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;800&family=Inter:wght@300;400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,6 +8,45 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+}
+
+/* 🌟 GOD RAYS ANIMATION */
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shine {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.god-rays {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 20deg,
+    rgba(201, 164, 76, 0.1) 25deg, 
+    transparent 30deg
+  );
+  animation: rotate 120s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark .god-rays {
+  background: repeating-conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 20deg,
+    rgba(255, 255, 255, 0.05) 25deg, 
+    transparent 30deg
+  );
 }
 
 body {
