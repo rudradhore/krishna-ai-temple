@@ -1,44 +1,17 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Mic, MicOff, Volume2, VolumeX, Sun, Moon, Sparkles } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, Sun, Moon, Sparkles, BookOpen } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// --- VISUAL ASSETS: THE DOOR TEXTURE ---
-// We use CSS gradients to simulate heavy gold metal with depth
-const DoorPanel = ({ side }: { side: 'left' | 'right' }) => (
-  <div className={`relative w-full h-full bg-[#1a160e] overflow-hidden border-${side === 'left' ? 'r' : 'l'} border-[#4a3b22]`}>
-    {/* Base Metal Texture */}
-    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#D4AF37] via-[#996515] to-[#422e0f] opacity-100" />
-    
-    {/* Noise Texture for Realism */}
-    <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
+// --- ASSETS: 3D BOOK COMPONENTS ---
 
-    {/* Inner Bevel (The Frame) */}
-    <div className="absolute inset-4 border-[12px] border-[#d4af37]/40 border-t-[#ffe57f]/60 border-b-[#422e0f]/80 rounded-lg shadow-[inset_0_0_20px_rgba(0,0,0,0.8)]" />
-
-    {/* The Middle Carvings */}
-    <div className="absolute inset-[15%] flex flex-col justify-between py-10 items-center opacity-30 mix-blend-overlay">
-       <Mandala className="w-64 h-64 text-[#3e2706]" />
-       <Mandala className="w-64 h-64 text-[#3e2706]" />
-    </div>
-
-    {/* The Handle Area */}
-    <div className={`absolute top-1/2 ${side === 'left' ? 'right-8' : 'left-8'} -translate-y-1/2`}>
-      <div className="w-6 h-32 bg-[#2a1d0d] rounded-full blur-md opacity-50 absolute top-2 left-2" /> {/* Shadow */}
-      <div className="w-4 h-32 bg-gradient-to-r from-[#ffe57f] via-[#d4af37] to-[#805b10] rounded-full shadow-2xl flex flex-col items-center justify-center border border-[#422e0f]">
-         <div className="w-16 h-16 rounded-full border-4 border-[#d4af37] absolute top-1/2 -translate-y-1/2 -translate-x-1/2 left-1/2 bg-[#1a1205] shadow-[inset_0_0_10px_black] flex items-center justify-center">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#ffe57f] to-[#996515]" />
-         </div>
-      </div>
-    </div>
-    
-    {/* Vertical sheen (Lighting) */}
-    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#ffe57f]/10 to-transparent transform skew-x-12 translate-x-[-100%] animate-[shine_8s_infinite]" />
-  </div>
+const GoldText = ({ children, className }: { children: React.ReactNode, className?: string }) => (
+  <h1 className={`font-serif text-transparent bg-clip-text bg-gradient-to-b from-[#ffe57f] via-[#d4af37] to-[#805b10] drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] ${className}`} style={{ fontFamily: 'Cinzel, serif' }}>
+    {children}
+  </h1>
 );
 
-// --- SACRED GEOMETRY (THE MANDALA) ---
 const Mandala = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 100 100" className={className} fill="none" stroke="currentColor">
     <circle cx="50" cy="50" r="45" strokeWidth="1" />
@@ -52,14 +25,13 @@ const Mandala = ({ className }: { className?: string }) => (
 // --- MAIN COMPONENT ---
 
 export default function Chat() {
-  const [hasStarted, setHasStarted] = useState(false);
-  const [isEntering, setIsEntering] = useState(false);
+  const [stage, setStage] = useState<'closed' | 'opening' | 'open'>('closed');
   const [mode, setMode] = useState<'reflection' | 'mantra'>('reflection');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Logic
   const [messages, setMessages] = useState([
-    { role: "ai", text: "Welcome, seeker. The inner sanctum is open." }
+    { role: "ai", text: "I am the taste of water, the light of the sun and the moon, the syllable Om in the Vedic mantras. Ask, Arjuna." }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -97,13 +69,13 @@ export default function Chat() {
     }
   };
 
-  // --- HEAVY ENTRANCE SEQUENCE ---
-  const handleEnter = () => {
-    setIsEntering(true);
-    // Timing: Rumble first, then open
+  // --- BOOK OPENING SEQUENCE ---
+  const handleOpenBook = () => {
+    setStage('opening');
+    // 1.5s for cover to open, then 1s to zoom in
     setTimeout(() => {
-      setHasStarted(true);
-    }, 2500); 
+      setStage('open');
+    }, 2000); 
   };
 
   // --- LOGIC HELPERS ---
@@ -182,167 +154,209 @@ export default function Chat() {
     finally { setLoading(false); }
   };
 
-  // --- RENDER: THE GOLDEN GATES ---
-  if (!hasStarted) {
+  // --- RENDER: THE 3D BOOK (CLOSED/OPENING) ---
+  if (stage !== 'open') {
     return (
-      <div className="h-[100dvh] w-full overflow-hidden relative flex items-center justify-center bg-black perspective-[1000px]">
-        {/* Background Glow (Visible through crack) */}
-        <div className={`absolute inset-0 bg-sanctuary-gold transition-opacity duration-[3000ms] ${isEntering ? 'opacity-100' : 'opacity-0'}`} />
+      <div className="h-[100dvh] w-full bg-[#120a0a] flex items-center justify-center overflow-hidden perspective-[2000px]">
+        
+        {/* Ambient Light */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#ffae00]/10 via-transparent to-black" />
 
-        {/* LEFT DOOR */}
+        {/* THE BOOK WRAPPER */}
         <motion.div 
-          initial={{ x: 0, rotateY: 0 }}
-          animate={isEntering ? { x: "-95%", rotateY: 10 } : { x: 0, rotateY: 0 }}
-          transition={{ duration: 3, ease: [0.4, 0, 0.2, 1], delay: 0.5 }} // Heavy Ease
-          className="absolute left-0 top-0 w-1/2 h-full z-50 origin-left shadow-[10px_0_50px_rgba(0,0,0,0.8)]"
+          className="relative w-[300px] h-[450px] md:w-[400px] md:h-[600px] preserve-3d cursor-pointer"
+          onClick={stage === 'closed' ? handleOpenBook : undefined}
+          initial={{ rotateY: 0, rotateX: 10, scale: 0.9 }}
+          animate={stage === 'opening' 
+            ? { rotateY: 0, rotateX: 0, scale: 3, x: 100 } // Zoom into the book
+            : { rotateY: -15, rotateX: 10, scale: 1 }      // Hover state
+          }
+          transition={{ duration: 2, ease: "easeInOut" }}
+          style={{ transformStyle: 'preserve-3d' }}
         >
-          <DoorPanel side="left" />
-        </motion.div>
+          {/* --- BACK COVER (Static Base) --- */}
+          <div className="absolute inset-0 bg-[#3d0e0e] rounded-r-lg shadow-2xl border-l-[20px] border-[#2a0505]" 
+               style={{ transform: 'translateZ(-40px)' }} />
 
-        {/* RIGHT DOOR */}
-        <motion.div 
-          initial={{ x: 0, rotateY: 0 }}
-          animate={isEntering ? { x: "95%", rotateY: -10 } : { x: 0, rotateY: 0 }}
-          transition={{ duration: 3, ease: [0.4, 0, 0.2, 1], delay: 0.5 }} // Heavy Ease
-          className="absolute right-0 top-0 w-1/2 h-full z-50 origin-right shadow-[-10px_0_50px_rgba(0,0,0,0.8)]"
-        >
-          <DoorPanel side="right" />
-        </motion.div>
+          {/* --- PAGES (The Block) --- */}
+          <div className="absolute inset-0 right-2 top-2 bottom-2 bg-[#f4f1ea] rounded-r-sm shadow-inner border-l-[18px] border-[#e6e2d6]" 
+               style={{ transform: 'translateZ(-20px)', width: '98%' }}>
+               {/* Page Texture (Lines) */}
+               <div className="absolute right-0 top-0 bottom-0 w-8 bg-[repeating-linear-gradient(90deg,#e6e2d6,#e6e2d6_1px,transparent_1px,transparent_4px)] opacity-50" />
+               
+               {/* INNER CONTENT REVEAL (Pre-load) */}
+               <div className="absolute inset-0 p-12 flex flex-col items-center justify-center opacity-0 animate-[fadeIn_2s_delay-1s_forwards]">
+                  <div className="w-full h-full border border-[#d4af37]/30 p-4">
+                     <h2 className="text-[#2a0505] font-serif text-center mt-20">Chapter 1</h2>
+                  </div>
+               </div>
+          </div>
 
-        {/* CENTER CRACK GLOW */}
-        <motion.div 
-            animate={isEntering ? { opacity: 1, scaleX: 10 } : { opacity: 0.5, scaleX: 1 }}
-            className="absolute top-0 bottom-0 left-1/2 w-1 -translate-x-1/2 bg-white blur-xl z-40 transition-all duration-[2000ms]"
-        />
-
-        {/* CENTER CTA */}
-        {!isEntering && (
+          {/* --- FRONT COVER (The Moving Part) --- */}
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="z-[60] flex flex-col items-center gap-8 p-12 bg-black/40 backdrop-blur-md rounded-full border border-sanctuary-gold/30 shadow-2xl"
+            className="absolute inset-0 origin-left preserve-3d"
+            style={{ transformStyle: 'preserve-3d' }}
+            animate={stage === 'opening' ? { rotateY: -160 } : { rotateY: 0 }}
+            transition={{ duration: 2, ease: "easeInOut" }}
           >
-            <h1 className="text-5xl md:text-7xl font-serif text-[#ffe57f] tracking-widest drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]" style={{ fontFamily: 'Cinzel, serif' }}>
-              DWARKA
-            </h1>
-            <p className="text-sanctuary-gold/80 uppercase tracking-[0.4em] text-xs">The Eternal Gateway</p>
-            <button 
-              onClick={handleEnter}
-              className="px-12 py-4 bg-gradient-to-r from-[#996515] to-[#d4af37] text-[#2a1d0d] hover:brightness-110 transition-all duration-500 rounded-sm tracking-[0.3em] uppercase text-sm font-bold shadow-[0_0_20px_rgba(212,175,55,0.4)] border border-[#ffe57f]/50"
-            >
-              Open Gates
-            </button>
+            {/* FRONT FACE (Outer Cover) */}
+            <div className="absolute inset-0 backface-hidden bg-gradient-to-br from-[#5c0e0e] to-[#2e0404] rounded-r-lg border-l-[20px] border-[#2a0505] shadow-2xl flex flex-col items-center justify-between p-8 overflow-hidden">
+               {/* Leather Texture */}
+               <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/black-leather.png')]" />
+               
+               {/* Gold Border */}
+               <div className="absolute inset-4 border-2 border-[#d4af37] rounded-sm opacity-70" />
+               <div className="absolute inset-6 border border-[#d4af37] rounded-sm opacity-40" />
+
+               {/* Corner Ornaments */}
+               <Mandala className="absolute top-8 left-8 w-16 h-16 text-[#d4af37] opacity-60" />
+               <Mandala className="absolute bottom-8 right-8 w-16 h-16 text-[#d4af37] opacity-60" />
+
+               {/* Center Title */}
+               <div className="flex-1 flex flex-col items-center justify-center space-y-6 z-10">
+                  <GoldText className="text-4xl md:text-6xl text-center leading-tight">
+                     BHAGAVAD<br/>GITA
+                  </GoldText>
+                  <div className="w-32 h-32 rounded-full border-2 border-[#d4af37]/50 flex items-center justify-center">
+                     <Sun className="w-20 h-20 text-[#ffe57f] animate-[spin_60s_linear_infinite]" />
+                  </div>
+                  <p className="text-[#d4af37] tracking-[0.4em] text-xs font-serif mt-4">THE DIVINE SONG</p>
+               </div>
+
+               {/* Shine Effect */}
+               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-transparent pointer-events-none" />
+            </div>
+
+            {/* BACK FACE (Inside Cover) */}
+            <div className="absolute inset-0 backface-hidden bg-[#2a0505] rotate-y-180 rounded-l-lg border-r-[20px] border-[#1a0202]" 
+                 style={{ transform: 'rotateY(180deg)' }}>
+               <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+               <div className="absolute bottom-10 left-10 text-[#d4af37]/40 font-serif text-sm">
+                  Library of the Soul
+               </div>
+            </div>
           </motion.div>
+        </motion.div>
+
+        {/* Helper Text */}
+        {stage === 'closed' && (
+           <motion.p 
+             initial={{ opacity: 0 }} 
+             animate={{ opacity: 1 }} 
+             transition={{ delay: 1 }}
+             className="absolute bottom-12 text-[#d4af37]/60 tracking-[0.2em] text-xs uppercase animate-pulse"
+           >
+             Tap to Open Wisdom
+           </motion.p>
         )}
       </div>
     );
   }
 
-  // --- RENDER: SANCTUM ---
+  // --- RENDER: OPENED BOOK (THE APP INTERFACE) ---
   return (
-    <div className="h-[100dvh] w-full bg-[#f4f1ea] dark:bg-[#050505] flex flex-col font-sans relative transition-colors duration-1000 overflow-hidden">
-       
-       {/* 🌟 GOD RAYS & ATMOSPHERE */}
-       <div className="god-rays opacity-40 dark:opacity-20 mix-blend-soft-light" />
-       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-sanctuary-gold/5 pointer-events-none" />
-       
-       {/* 🌀 MANDALA BACKGROUND */}
-       <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 dark:opacity-10">
-          <Mandala className="w-[120vh] h-[120vh] text-sanctuary-gold animate-[spin_180s_linear_infinite]" />
-       </div>
+    <motion.div 
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      transition={{ duration: 1 }}
+      className="h-[100dvh] w-full bg-[#f4f1ea] dark:bg-[#0c0c0c] flex flex-col font-sans relative transition-colors duration-1000"
+    >
+       {/* 🌟 PAPER TEXTURE OVERLAY */}
+       <div className="absolute inset-0 opacity-40 dark:opacity-10 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
+       <div className="absolute inset-0 bg-gradient-to-b from-[#d4af37]/5 via-transparent to-transparent pointer-events-none" />
 
        {/* HEADER */}
-       <header className="flex-none z-20 px-6 py-5 flex justify-between items-center bg-transparent">
-          <div className="flex items-center gap-3 bg-white/40 dark:bg-black/40 backdrop-blur-xl px-5 py-2 rounded-full border border-white/20 shadow-sm">
-            <Sparkles size={16} className="text-sanctuary-gold" />
-            <span className="text-sm font-bold tracking-widest text-sanctuary-charcoal dark:text-sanctuary-starlight" style={{ fontFamily: 'Cinzel, serif' }}>KRISHNA AI</span>
+       <header className="flex-none z-20 px-6 py-4 flex justify-between items-center border-b border-[#d4af37]/20">
+          <div className="flex items-center gap-3">
+             <BookOpen className="text-sanctuary-gold w-6 h-6" />
+             <GoldText className="text-xl font-bold tracking-widest">GITA AI</GoldText>
           </div>
 
           <div className="flex gap-4">
-            <button onClick={toggleTheme} className="p-3 rounded-full bg-white/40 dark:bg-black/40 backdrop-blur-xl text-sanctuary-charcoal dark:text-sanctuary-gold hover:bg-white/60 transition-all border border-white/10">
+            <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#5c0e0e] dark:text-[#d4af37] transition-colors">
                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            <div className="flex bg-white/40 dark:bg-black/40 backdrop-blur-xl rounded-full p-1 border border-white/10">
-               <button onClick={() => setMode('reflection')} className={`px-5 py-2 rounded-full text-xs font-bold uppercase transition-all ${mode === 'reflection' ? 'bg-sanctuary-gold text-[#2a1d0d] shadow-lg' : 'text-sanctuary-charcoal/60 dark:text-white/60'}`}>Chat</button>
-               <button onClick={() => setMode('mantra')} className={`px-5 py-2 rounded-full text-xs font-bold uppercase transition-all ${mode === 'mantra' ? 'bg-sanctuary-gold text-[#2a1d0d] shadow-lg' : 'text-sanctuary-charcoal/60 dark:text-white/60'}`}>Chant</button>
+            <div className="flex bg-[#e6e2d6] dark:bg-[#1f1f1f] rounded-full p-1 border border-[#d4af37]/20">
+               <button onClick={() => setMode('reflection')} className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase transition-all ${mode === 'reflection' ? 'bg-[#5c0e0e] text-[#ffe57f] shadow-lg' : 'text-gray-500'}`}>Read</button>
+               <button onClick={() => setMode('mantra')} className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase transition-all ${mode === 'mantra' ? 'bg-[#5c0e0e] text-[#ffe57f] shadow-lg' : 'text-gray-500'}`}>Chant</button>
             </div>
           </div>
        </header>
 
-       {/* CONTENT: THE ALTAR */}
-       <main className="flex-1 overflow-y-auto z-10 scroll-smooth px-4 pb-4">
+       {/* CONTENT: THE PAGE */}
+       <main className="flex-1 overflow-y-auto z-10 scroll-smooth px-2 md:px-0">
          <AnimatePresence mode="wait">
            {mode === 'reflection' ? (
              <motion.div 
                key="chat" 
                initial={{opacity:0, y: 20}} 
                animate={{opacity:1, y: 0}} 
-               exit={{opacity:0, scale: 0.95}} 
-               className="max-w-4xl mx-auto mt-2 h-[80vh] flex flex-col"
+               className="max-w-3xl mx-auto mt-4 min-h-[80vh] flex flex-col"
              >
-               {/* Messages Container - The Scroll */}
-               <div className="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar mask-image-gradient">
+               {/* The Scroll Container */}
+               <div className="flex-1 space-y-6 p-4 md:p-8">
                  {messages.map((m, i) => (
                    <motion.div 
                      key={i}
-                     initial={{ opacity: 0, y: 20 }}
-                     animate={{ opacity: 1, y: 0 }}
+                     initial={{ opacity: 0, scale: 0.98 }}
+                     animate={{ opacity: 1, scale: 1 }}
                      className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                    >
-                     <div className={`max-w-[85%] px-8 py-6 rounded-3xl relative overflow-hidden ${
+                     <div className={`max-w-[85%] px-6 py-4 rounded-xl relative ${
                        m.role === 'user' 
-                         ? 'bg-gradient-to-br from-[#d4af37] to-[#b8860b] text-[#2a1d0d] shadow-lg rounded-br-none font-medium' 
-                         : 'bg-white/60 dark:bg-[#151515]/80 backdrop-blur-md text-sanctuary-charcoal dark:text-sanctuary-starlight font-serif text-lg leading-relaxed shadow-sm border border-sanctuary-gold/20'
+                         ? 'bg-[#5c0e0e] text-[#ffe57f] font-sans shadow-md rounded-br-none' 
+                         : 'bg-transparent border-l-4 border-[#d4af37] pl-6 text-[#2a0505] dark:text-[#ffe57f] font-serif text-lg leading-relaxed'
                      }`}>
-                       {/* Subtle texture overlay for messages */}
-                       <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')]" />
-                       <span className="relative z-10">{m.text}</span>
+                       {m.text}
                      </div>
                    </motion.div>
                  ))}
-                 {loading && <div className="text-center text-sanctuary-gold animate-pulse text-xs tracking-widest uppercase font-bold">The Divine Listens...</div>}
+                 {loading && <div className="pl-6 text-[#d4af37] font-serif italic text-sm animate-pulse">Turning pages...</div>}
                  <div ref={messagesEndRef} />
                </div>
                
-               {/* INPUT AREA */}
-               <div className="mt-4 p-2 bg-white/50 dark:bg-black/50 backdrop-blur-xl border border-white/20 dark:border-white/10 rounded-full flex items-center gap-2 shadow-2xl">
-                 <input 
-                   className="flex-1 bg-transparent border-none text-lg px-6 text-sanctuary-charcoal dark:text-white placeholder:text-sanctuary-charcoal/40 focus:ring-0 font-serif"
-                   placeholder="Ask, and it shall be given..."
-                   value={input}
-                   onChange={(e) => setInput(e.target.value)}
-                   onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                 />
-                 <button onClick={sendMessage} disabled={loading} className="p-4 bg-gradient-to-r from-[#d4af37] to-[#b8860b] rounded-full text-[#2a1d0d] hover:scale-105 active:scale-95 transition-all shadow-lg">
-                   <Send size={20} />
-                 </button>
+               {/* INPUT */}
+               <div className="p-4 md:p-6 sticky bottom-0 bg-gradient-to-t from-[#f4f1ea] dark:from-[#0c0c0c] to-transparent">
+                 <div className="bg-white dark:bg-[#1a1a1a] border border-[#d4af37]/40 rounded-full flex items-center gap-2 shadow-xl p-2">
+                   <input 
+                     className="flex-1 bg-transparent border-none text-lg px-6 text-[#2a0505] dark:text-[#ffe57f] placeholder:text-gray-400 focus:ring-0 font-serif"
+                     placeholder="Ask Krishna..."
+                     value={input}
+                     onChange={(e) => setInput(e.target.value)}
+                     onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                   />
+                   <button onClick={sendMessage} disabled={loading} className="p-3 bg-[#5c0e0e] rounded-full text-[#ffe57f] hover:scale-105 transition-all shadow-lg">
+                     <Send size={20} />
+                   </button>
+                 </div>
                </div>
              </motion.div>
            ) : (
-             <motion.div key="mantra" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="h-full flex flex-col items-center justify-center space-y-16">
-                <div className="relative z-10 group cursor-pointer" onClick={toggleMic}>
-                   {/* The Glowing Aura */}
-                   <div className={`absolute inset-0 bg-sanctuary-gold/20 rounded-full blur-3xl transition-all duration-1000 ${isListening ? 'scale-150 opacity-100' : 'scale-50 opacity-0'}`} />
+             <motion.div key="mantra" initial={{opacity:0}} animate={{opacity:1}} className="h-full flex flex-col items-center justify-center space-y-12">
+                {/* Japa Counter on Paper */}
+                <div className="relative w-80 h-80 flex items-center justify-center">
+                   <div className="absolute inset-0 border-[1px] border-[#d4af37] rounded-full opacity-30 animate-[spin_60s_linear_infinite]" />
+                   <div className="absolute inset-4 border-[1px] border-[#d4af37] rounded-full opacity-20 animate-[spin_40s_linear_infinite_reverse]" />
                    
-                   {/* The Orb */}
-                   <div className={`w-80 h-80 rounded-full border border-sanctuary-gold/30 flex items-center justify-center relative backdrop-blur-sm bg-gradient-to-b from-white/10 to-transparent shadow-2xl transition-all duration-500 ${isListening ? 'scale-105 border-sanctuary-gold' : ''}`}>
-                      <Mandala className={`absolute inset-0 w-full h-full text-sanctuary-gold opacity-40 transition-all duration-[2000ms] ${isListening ? 'animate-[spin_20s_linear_infinite]' : 'animate-none'}`} />
-                      <span className="font-serif text-9xl text-sanctuary-gold drop-shadow-[0_2px_10px_rgba(212,175,55,0.5)] z-10" style={{ fontFamily: 'Cinzel, serif' }}>{japaCount}</span>
+                   <div className={`relative z-10 w-64 h-64 rounded-full bg-[#5c0e0e] flex items-center justify-center shadow-2xl transition-transform duration-300 ${isListening ? 'scale-105' : ''}`}>
+                      <span className="font-serif text-8xl text-[#ffe57f] drop-shadow-md" style={{ fontFamily: 'Cinzel, serif' }}>{japaCount}</span>
                    </div>
                 </div>
                 
-                <div className="text-center space-y-4">
-                  <p className="text-sanctuary-gold uppercase tracking-[0.4em] text-xs font-bold animate-pulse">
-                    {isListening ? "Chanting in Progress..." : "Touch the Orb to Begin"}
-                  </p>
-                  <p className="text-xs text-sanctuary-charcoal/40 dark:text-white/30 font-serif italic">
-                    "Hare Krishna, Hare Krishna..."
-                  </p>
-                </div>
+                <button 
+                  onClick={toggleMic}
+                  className={`px-10 py-3 rounded-full font-bold tracking-widest uppercase transition-all shadow-lg ${
+                    isListening 
+                      ? 'bg-red-600 text-white animate-pulse' 
+                      : 'bg-[#d4af37] text-[#2a0505] hover:bg-[#ffe57f]'
+                  }`}
+                >
+                  {isListening ? "Listening..." : "Begin Chant"}
+                </button>
              </motion.div>
            )}
          </AnimatePresence>
        </main>
-    </div>
+    </motion.div>
   );
 }
