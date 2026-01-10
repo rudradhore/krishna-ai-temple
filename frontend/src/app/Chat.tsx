@@ -1,194 +1,154 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense, useMemo } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, Cloud, Sparkles, Float, Text, OrbitControls } from "@react-three/drei";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { Environment, Cloud, Sparkles, Float } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette, Noise } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { Send, Mic, MicOff, Sun, Moon, Volume2, VolumeX } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, Languages, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-// --- 3D ASSETS ---
+// --- 3D ASSETS (VAIKUNTHA GATES) ---
 
-// 🌸 PROCEDURAL LOTUS (The Divine Center)
-function SacredLotus({ position, rotation, scale, color }: any) {
-  const petals = useMemo(() => {
-    return new Array(12).fill(0).map((_, i) => ({
-      rotation: [Math.PI / 3, 0, (i * Math.PI * 2) / 12],
-    }));
-  }, []);
-
-  const innerPetals = useMemo(() => {
-    return new Array(8).fill(0).map((_, i) => ({
-      rotation: [Math.PI / 2.5, 0, (i * Math.PI * 2) / 8],
-    }));
-  }, []);
-
+function SacredLotus({ position, scale, color }: any) {
+  const petals = useMemo(() => new Array(12).fill(0).map((_, i) => ({ rotation: [Math.PI / 3, 0, (i * Math.PI * 2) / 12] })), []);
   return (
-    <group position={position} rotation={rotation} scale={scale}>
+    <group position={position} scale={scale}>
       <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
-        {/* Outer Petals */}
         {petals.map((p, i) => (
-          <mesh key={`outer-${i}`} rotation={p.rotation as any} position={[0, 0, 0]}>
+          <mesh key={`outer-${i}`} rotation={p.rotation as any}>
             <sphereGeometry args={[0.8, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.4]} />
-            <meshPhysicalMaterial 
-              color={color} 
-              roughness={0.2} 
-              metalness={0.1} 
-              transmission={0.6} // Glass-like
-              thickness={2}
-              envMapIntensity={2}
-            />
+            <meshPhysicalMaterial color={color} roughness={0.2} metalness={0.1} transmission={0.6} thickness={2} />
           </mesh>
         ))}
-        {/* Inner Petals (Glowing Center) */}
-        {innerPetals.map((p, i) => (
-          <mesh key={`inner-${i}`} rotation={p.rotation as any} scale={0.6} position={[0, 0.2, 0]}>
-            <sphereGeometry args={[0.8, 32, 32, 0, Math.PI * 2, 0, Math.PI * 0.4]} />
-            <meshStandardMaterial color="#fff" emissive="#FFD700" emissiveIntensity={2} toneMapped={false} />
-          </mesh>
-        ))}
-        {/* Core */}
-        <mesh position={[0, 0.1, 0]}>
-          <sphereGeometry args={[0.3, 32, 32]} />
-          <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={4} toneMapped={false} />
-        </mesh>
-        {/* Light Source inside Lotus */}
         <pointLight intensity={2} color="#FFD700" distance={5} />
       </Float>
     </group>
   );
 }
 
-// 🚪 THE MASSIVE GATES
 function DivineGate({ isOpen }: { isOpen: boolean }) {
   const leftGroup = useRef<THREE.Group>(null);
   const rightGroup = useRef<THREE.Group>(null);
 
   useFrame((state, delta) => {
     const targetRot = isOpen ? Math.PI / 2.2 : 0;
-    // Heavy, slow movement easing
     if (leftGroup.current && rightGroup.current) {
       leftGroup.current.rotation.y = THREE.MathUtils.lerp(leftGroup.current.rotation.y, -targetRot, delta * 0.5);
       rightGroup.current.rotation.y = THREE.MathUtils.lerp(rightGroup.current.rotation.y, targetRot, delta * 0.5);
     }
   });
 
-  // Ancient Gold Material
-  const goldMaterial = new THREE.MeshStandardMaterial({
-    color: "#C5A059", // Aged Gold
-    roughness: 0.3,
-    metalness: 1,
-    envMapIntensity: 1.5,
-  });
+  const goldMaterial = new THREE.MeshStandardMaterial({ color: "#C5A059", roughness: 0.3, metalness: 1 });
 
   const GatePanel = () => (
-    <group>
-      {/* Main Slab */}
-      <mesh material={goldMaterial} castShadow receiveShadow>
-        <boxGeometry args={[6, 16, 0.5]} />
-      </mesh>
-      {/* Vertical Pillars for Detail */}
-      <mesh material={goldMaterial} position={[-2, 0, 0.3]}>
-        <boxGeometry args={[0.5, 15.5, 0.2]} />
-      </mesh>
-      <mesh material={goldMaterial} position={[2, 0, 0.3]}>
-        <boxGeometry args={[0.5, 15.5, 0.2]} />
-      </mesh>
-      {/* Horizontal Bands */}
-      <mesh material={goldMaterial} position={[0, 4, 0.3]}>
-        <boxGeometry args={[5, 0.5, 0.2]} />
-      </mesh>
-      <mesh material={goldMaterial} position={[0, -4, 0.3]}>
-        <boxGeometry args={[5, 0.5, 0.2]} />
-      </mesh>
-      {/* Central Emblem */}
-      <mesh position={[0, 0, 0.3]} material={goldMaterial}>
-        <torusGeometry args={[1.5, 0.1, 16, 32]} />
-      </mesh>
-    </group>
+    <mesh material={goldMaterial} castShadow receiveShadow>
+       <boxGeometry args={[6, 16, 0.5]} />
+    </mesh>
   );
 
   return (
     <group position={[0, 0, -5]}>
-      {/* Left Door */}
-      <group ref={leftGroup} position={[-3, 0, 0]}>
-        <group position={[3, 0, 0]}> {/* Hinge Offset */}
-           <GatePanel />
-        </group>
-      </group>
-      {/* Right Door */}
-      <group ref={rightGroup} position={[3, 0, 0]}>
-        <group position={[-3, 0, 0]}> {/* Hinge Offset */}
-           <GatePanel />
-        </group>
-      </group>
-      
-      {/* 🌟 GOD RAY (Hidden behind doors, revealed when open) */}
-      <mesh position={[0, 0, -2]} rotation={[0, 0, 0]}>
+      <group ref={leftGroup} position={[-3, 0, 0]}><group position={[3, 0, 0]}><GatePanel /></group></group>
+      <group ref={rightGroup} position={[3, 0, 0]}><group position={[-3, 0, 0]}><GatePanel /></group></group>
+      <mesh position={[0, 0, -2]}>
         <circleGeometry args={[isOpen ? 12 : 0, 64]} />
         <meshBasicMaterial color="#fff" side={THREE.DoubleSide} transparent opacity={isOpen ? 0.8 : 0} />
       </mesh>
-      <pointLight position={[0, 0, -4]} intensity={isOpen ? 20 : 0} color="#ffaa00" distance={20} decay={2} />
+      <pointLight position={[0, 0, -4]} intensity={isOpen ? 20 : 0} color="#ffaa00" distance={20} />
     </group>
   );
 }
 
-// ☁️ ATMOSPHERE & CAMERA
 function SceneController({ isOpen }: { isOpen: boolean }) {
   useFrame((state, delta) => {
-    // Cinematic Camera Flythrough
-    const targetZ = isOpen ? -8 : 12; // Start far back, fly through gates
-    const speed = isOpen ? 2 * delta : 0.5 * delta;
-    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, speed);
-    
-    // Look gently at the center
+    const targetZ = isOpen ? -8 : 12;
+    state.camera.position.z = THREE.MathUtils.lerp(state.camera.position.z, targetZ, isOpen ? 2 * delta : 0.5 * delta);
     state.camera.lookAt(0, 0, -10);
   });
 
   return (
     <>
-      {/* Lighting */}
       <ambientLight intensity={0.2} color="#ffd700" />
-      <spotLight position={[10, 20, 10]} angle={0.5} penumbra={1} intensity={2} castShadow color="#ffebd6" />
-      
-      {/* Volumetric Clouds */}
+      <spotLight position={[10, 20, 10]} intensity={2} color="#ffebd6" />
       <Cloud opacity={0.5} speed={0.2} width={20} depth={10} segments={40} position={[0, -5, -5]} color="#fff0d6" />
-      <Cloud opacity={0.3} speed={0.1} width={10} depth={5} segments={20} position={[-10, 5, -10]} color="#ffd700" />
-      <Cloud opacity={0.3} speed={0.1} width={10} depth={5} segments={20} position={[10, 5, -10]} color="#ffd700" />
-
-      {/* Floating Particles (Dust Motes) */}
       <Sparkles count={300} scale={12} size={3} speed={0.2} opacity={0.6} color="#FFD700" />
-
-      {/* The Sanctum Lotus (Visible after passing gates) */}
-      <group position={[0, -2, -15]}>
-         <SacredLotus scale={2} color="#fff" />
-      </group>
-
+      <group position={[0, -2, -15]}><SacredLotus scale={2} color="#fff" /></group>
       <Environment preset="sunset" />
     </>
   );
 }
 
-// --- MAIN UI COMPONENT ---
+// --- MAIN COMPONENT ---
 
 export default function Chat() {
   const [hasStarted, setHasStarted] = useState(false);
   const [showUI, setShowUI] = useState(false);
   const [mode, setMode] = useState<'reflection' | 'mantra'>('reflection');
   
+  // Settings
+  const [language, setLanguage] = useState<'en' | 'hi'>('en'); // 'en' for English, 'hi' for Hindi
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  
   // Logic State
   const [messages, setMessages] = useState([
-    { role: "ai", text: "I am the silence between thoughts. Speak, seeker." }
+    { role: "ai", text: "Namaste. I am here. Speak your heart." }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [japaCount, setJapaCount] = useState(0);
+  const [isListening, setIsListening] = useState(false);
+
+  // Refs
+  const recognitionRef = useRef<any>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
 
   const enterSanctum = () => {
     setHasStarted(true);
-    // Timing: 2.5s flythrough -> Show UI
     setTimeout(() => setShowUI(true), 2500);
+  };
+
+  // --- VOICE ENGINE (Fixed) ---
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false; // Easier for chat
+        recognition.interimResults = true;
+        // 🌍 DYNAMIC LANGUAGE SWITCHING
+        recognition.lang = language === 'hi' ? 'hi-IN' : 'en-US'; 
+
+        recognition.onstart = () => setIsListening(true);
+        recognition.onend = () => setIsListening(false);
+
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[event.results.length - 1][0].transcript;
+          if (event.results[event.results.length - 1].isFinal) {
+            setInput(transcript);
+          }
+        };
+        recognitionRef.current = recognition;
+      }
+    }
+  }, [language]); // Re-initialize when language changes
+
+  const toggleMic = () => {
+    if (!recognitionRef.current) return alert("Browser does not support voice.");
+    if (isListening) {
+      recognitionRef.current.stop();
+    } else {
+      try { recognitionRef.current.start(); } catch (e) { console.error(e); }
+    }
+  };
+
+  const playAudio = (base64Audio: string) => {
+    if (!isAudioEnabled) return;
+    try {
+      const audio = new Audio(`data:audio/mp3;base64,${base64Audio}`);
+      audioPlayerRef.current = audio;
+      audio.play().catch(e => console.log("Audio play failed (user interaction needed):", e));
+    } catch (e) { console.error("Audio error", e); }
   };
 
   const sendMessage = async () => {
@@ -199,25 +159,28 @@ export default function Chat() {
     setLoading(true);
     try {
       const res = await fetch("https://krishna-ai-temple.onrender.com/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        // Sending Language to Backend so it knows which voice to generate
+        body: JSON.stringify({ text, language }), 
       });
       const data = await res.json();
       setMessages(prev => [...prev, { role: "ai", text: data.reply }]);
-    } catch (e) { setMessages(prev => [...prev, { role: "ai", text: "Connection faint..." }]); }
+      if (data.audio) playAudio(data.audio);
+    } catch (e) { setMessages(prev => [...prev, { role: "ai", text: "Peace. Connection faint." }]); }
     finally { setLoading(false); }
   };
 
   return (
     <div className="h-[100dvh] w-full bg-[#050301] relative overflow-hidden">
       
-      {/* 🌌 3D SCENE LAYER */}
-      <div className={`absolute inset-0 transition-all duration-[2000ms] ${showUI ? 'opacity-30 blur-sm' : 'opacity-100 blur-none'}`}>
+      {/* 🌌 3D BACKGROUND */}
+      <div className={`absolute inset-0 transition-all duration-[2000ms] ${showUI ? 'opacity-40 blur-sm' : 'opacity-100 blur-none'}`}>
         <Canvas shadows camera={{ position: [0, 0, 12], fov: 50 }} gl={{ toneMapping: THREE.ACESFilmicToneMapping }}>
           <Suspense fallback={null}>
             <DivineGate isOpen={hasStarted} />
             <SceneController isOpen={hasStarted} />
             <EffectComposer disableNormalPass>
-              <Bloom luminanceThreshold={1} luminanceSmoothing={0.9} height={300} intensity={2} />
+              <Bloom luminanceThreshold={1} luminanceSmoothing={0.9} height={300} intensity={1.5} />
               <Vignette eskil={false} offset={0.1} darkness={1.1} />
               <Noise opacity={0.02} />
             </EffectComposer>
@@ -225,71 +188,62 @@ export default function Chat() {
         </Canvas>
       </div>
 
-      {/* 🌟 ENTRANCE TITLE (Fades out on start) */}
+      {/* 🌟 ENTRANCE SCREEN */}
       <AnimatePresence>
         {!hasStarted && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 1.1 }} transition={{ duration: 1 }}
-            className="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none"
-          >
-            <div className="text-center space-y-8 pointer-events-auto">
-              <motion.h1 
-                initial={{ y: 20 }} animate={{ y: 0 }} transition={{ duration: 1.5, ease: "easeOut" }}
-                className="text-6xl md:text-9xl font-serif text-[#FFD700] tracking-widest drop-shadow-[0_0_40px_rgba(255,215,0,0.6)]" style={{ fontFamily: 'Cinzel, serif' }}
-              >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-50 flex items-center justify-center">
+            <div className="text-center space-y-8">
+              <h1 className="text-6xl md:text-8xl font-serif text-[#FFD700] tracking-widest drop-shadow-[0_0_40px_rgba(255,215,0,0.6)]" style={{ fontFamily: 'Cinzel, serif' }}>
                 VAIKUNTHA
-              </motion.h1>
-              <motion.p 
-                initial={{ opacity: 0 }} animate={{ opacity: 0.8 }} transition={{ delay: 1 }}
-                className="text-[#FFD700]/80 tracking-[0.5em] text-xs uppercase"
-              >
-                The Eternal Sanctum
-              </motion.p>
-              
-              <motion.button 
-                whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                onClick={enterSanctum}
-                className="group relative px-12 py-5 bg-transparent border border-[#FFD700]/30 text-[#FFD700] uppercase tracking-[0.3em] text-sm font-bold transition-all hover:bg-[#FFD700]/10"
-              >
-                <span className="relative z-10">Enter Gates</span>
-                <div className="absolute inset-0 bg-[#FFD700] opacity-0 group-hover:opacity-100 blur-xl transition-opacity duration-500" />
-              </motion.button>
+              </h1>
+              <button onClick={enterSanctum} className="px-12 py-5 border border-[#FFD700]/50 text-[#FFD700] uppercase tracking-[0.3em] font-bold hover:bg-[#FFD700]/10 transition-all">
+                Enter
+              </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 📜 CHAT UI (Fades in after transition) */}
+      {/* 📜 CHAT UI */}
       {showUI && (
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.5 }}
-          className="absolute inset-0 z-50 flex flex-col font-sans"
-        >
-            {/* Header */}
-            <header className="flex-none p-6 flex justify-between items-center bg-gradient-to-b from-black/60 to-transparent backdrop-blur-[2px]">
-                <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-[#FFD700] animate-pulse" />
-                    <span className="text-[#FFD700] font-bold tracking-[0.2em] text-sm">KRISHNA AI</span>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }} className="absolute inset-0 z-50 flex flex-col font-sans">
+            
+            {/* HEADER CONTROLS */}
+            <header className="flex-none p-4 flex justify-between items-center bg-gradient-to-b from-black/80 to-transparent">
+                <div className="flex items-center gap-2">
+                    <span className="text-[#FFD700] font-bold tracking-widest">KRISHNA AI</span>
                 </div>
-                <div className="flex bg-white/5 backdrop-blur-md rounded-full p-1 border border-white/10">
-                    <button onClick={() => setMode('reflection')} className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all ${mode === 'reflection' ? 'bg-[#FFD700] text-black' : 'text-white/50'}`}>Chat</button>
-                    <button onClick={() => setMode('mantra')} className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all ${mode === 'mantra' ? 'bg-[#FFD700] text-black' : 'text-white/50'}`}>Chant</button>
+                
+                <div className="flex gap-3">
+                   {/* Language Toggle */}
+                   <button 
+                     onClick={() => setLanguage(prev => prev === 'en' ? 'hi' : 'en')}
+                     className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-[#FFD700] text-xs font-bold uppercase hover:bg-white/20 transition-all"
+                   >
+                     <Languages size={14} />
+                     {language === 'en' ? "English" : "हिंदी"}
+                   </button>
+                   
+                   {/* Audio Toggle */}
+                   <button onClick={() => setIsAudioEnabled(!isAudioEnabled)} className="p-2 rounded-full text-[#FFD700] hover:bg-white/10">
+                     {isAudioEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+                   </button>
                 </div>
             </header>
 
-            {/* Chat Area */}
-            <main className="flex-1 overflow-y-auto px-4 custom-scrollbar">
+            {/* MESSAGES */}
+            <main className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
                 {mode === 'reflection' ? (
-                    <div className="max-w-3xl mx-auto mt-20 space-y-8 pb-20">
+                    <div className="max-w-2xl mx-auto space-y-6 pb-24">
                         {messages.map((m, i) => (
                             <motion.div 
-                                key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                                className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-center'}`}
+                                key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
-                                <div className={`max-w-[85%] px-8 py-6 text-lg leading-relaxed backdrop-blur-md ${
+                                <div className={`max-w-[85%] px-6 py-4 text-lg leading-relaxed backdrop-blur-xl border border-white/10 ${
                                     m.role === 'user' 
-                                        ? 'bg-[#FFD700]/90 text-black rounded-2xl shadow-lg' 
-                                        : 'text-center text-[#FFD700] font-serif text-xl drop-shadow-md'
+                                        ? 'bg-[#FFD700]/80 text-black rounded-2xl rounded-br-none shadow-lg font-medium' 
+                                        : 'bg-black/40 text-[#FFD700] rounded-2xl rounded-bl-none font-serif text-xl shadow-inner'
                                 }`}>
                                     {m.text}
                                 </div>
@@ -298,28 +252,36 @@ export default function Chat() {
                         {loading && <div className="text-center text-[#FFD700]/50 animate-pulse text-xs tracking-widest uppercase">Divining...</div>}
                     </div>
                 ) : (
-                    <div className="h-full flex items-center justify-center">
-                        <div className="relative w-80 h-80 flex items-center justify-center">
-                             <div className="absolute inset-0 border border-[#FFD700]/30 rounded-full animate-[spin_30s_linear_infinite]" />
-                             <span className="text-8xl font-serif text-[#FFD700] drop-shadow-[0_0_20px_rgba(255,215,0,0.5)]">{japaCount}</span>
-                        </div>
+                    <div className="h-full flex items-center justify-center text-[#FFD700] text-6xl font-serif">
+                       {japaCount}
                     </div>
                 )}
             </main>
 
-            {/* Input Area */}
+            {/* INPUT BAR (Fixed at bottom) */}
             {mode === 'reflection' && (
-                <div className="p-6 max-w-xl mx-auto w-full">
-                    <div className="bg-black/40 backdrop-blur-xl border border-[#FFD700]/30 rounded-full flex items-center gap-2 p-2 pl-6 shadow-2xl">
+                <div className="p-4 max-w-2xl mx-auto w-full">
+                    <div className="bg-black/60 backdrop-blur-xl border border-[#FFD700]/30 rounded-full flex items-center gap-2 p-2 shadow-2xl">
+                        
+                        {/* MIC BUTTON */}
+                        <button 
+                          onClick={toggleMic}
+                          className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-transparent text-[#FFD700] hover:bg-white/10'}`}
+                        >
+                           {isListening ? <Mic size={20} /> : <MicOff size={20} />}
+                        </button>
+
                         <input 
-                            className="flex-1 bg-transparent border-none text-lg text-white placeholder:text-white/30 focus:ring-0 font-serif"
-                            placeholder="Ask..."
+                            className="flex-1 bg-transparent border-none text-lg text-white placeholder:text-white/30 focus:ring-0 font-serif px-2"
+                            placeholder={language === 'en' ? "Ask Krishna..." : "कृष्णा से पूछें..."}
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
                         />
+                        
+                        {/* SEND BUTTON */}
                         <button onClick={sendMessage} className="p-3 bg-[#FFD700] rounded-full text-black hover:scale-110 transition-transform">
-                            <Send size={18} />
+                            <Send size={20} />
                         </button>
                     </div>
                 </div>
