@@ -3,4 +3,4 @@ flask-cors
 gunicorn
 edge-tts
 google-generativeai
-asyncio
+wsgi.py
