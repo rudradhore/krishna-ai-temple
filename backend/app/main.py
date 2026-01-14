@@ -10,6 +10,7 @@ import tempfile
 # Initialize App
 app = Flask(__name__)
 CORS(app)
+        
 
 # Configure API Key
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
