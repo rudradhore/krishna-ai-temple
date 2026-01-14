@@ -7,14 +7,14 @@ import edge_tts
 import base64
 import tempfile
 
-# ✅ CORRECT
+# ✅ CRITICAL: This variable must be named 'app'
 app = Flask(__name__)
 CORS(app)
 
-# Configure Gemini API Key
+# Configure Gemini
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# --- SYSTEM PROMPTS (MALE PERSONA) ---
+# --- SYSTEM PROMPTS ---
 ENGLISH_PROMPT = """
 You are Krishna. Speak to the devotee with deep wisdom, authority, and compassion. 
 Keep answers brief (max 2 sentences). 
@@ -27,9 +27,7 @@ HINDI_PROMPT = """
 लहजा: दिव्य, शांत, पुरुषोचित, आश्वस्त करने वाला।
 """
 
-# --- MALE VOICE SETTINGS ---
-# Prabhat = Indian Male (English)
-# Madhur = Indian Male (Hindi)
+# --- VOICE SETTINGS ---
 VOICE_EN = "en-IN-PrabhatNeural"
 VOICE_HI = "hi-IN-MadhurNeural"
 
@@ -37,25 +35,20 @@ async def generate_audio_edge(text, voice):
     """Generates audio using Edge TTS and returns base64 string"""
     communicate = edge_tts.Communicate(text, voice)
     
-    # Create a temporary file to store the audio
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
         temp_filename = temp_file.name
     
     await communicate.save(temp_filename)
     
-    # Read the file back as bytes
     with open(temp_filename, "rb") as f:
         audio_bytes = f.read()
     
-    # Clean up temp file
     os.remove(temp_filename)
-    
     return base64.b64encode(audio_bytes).decode('utf-8')
 
 def get_krishna_response(text, lang):
     try:
         model = genai.GenerativeModel('gemini-pro')
-        # Select prompt based on language
         prompt = HINDI_PROMPT if lang == 'hi' else ENGLISH_PROMPT
         response = model.generate_content(f"{prompt}\n\nDevotee: {text}")
         return response.text
@@ -67,23 +60,22 @@ def get_krishna_response(text, lang):
 def chat():
     data = request.json
     user_text = data.get('text')
-    language = data.get('language', 'en') # Defaults to 'en' if not sent
+    language = data.get('language', 'en')
     
     if not user_text:
         return jsonify({"error": "No text provided"}), 400
 
-    # 1. Get Text Reply from Gemini
+    # 1. Get Text Reply
     reply_text = get_krishna_response(user_text, language)
 
-    # 2. Select the correct Male Voice
+    # 2. Select Voice
     selected_voice = VOICE_HI if language == 'hi' else VOICE_EN
 
-    # 3. Generate Audio (Async)
+    # 3. Generate Audio
     try:
-        # We use asyncio.run because Flask runs synchronously
         audio_base64 = asyncio.run(generate_audio_edge(reply_text, selected_voice))
     except Exception as e:
-        print(f"Audio Generation Error: {e}")
+        print(f"Audio Error: {e}")
         audio_base64 = None
 
     return jsonify({
@@ -91,5 +83,7 @@ def chat():
         "audio": audio_base64
     })
 
+# This block is for local testing only. 
+# Render uses Gunicorn and ignores this.
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
