@@ -35,7 +35,7 @@ async def generate_audio_edge(text, voice):
 
 def get_krishna_response(text, lang):
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         prompt = HINDI_PROMPT if lang == 'hi' else ENGLISH_PROMPT
         response = model.generate_content(f"{prompt}\n\nUser: {text}")
         return response.text
