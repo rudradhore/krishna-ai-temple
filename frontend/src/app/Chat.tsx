@@ -5,7 +5,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, Cloud, Sparkles, Float } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette, Noise } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { Send, Mic, MicOff, Volume2, VolumeX, Languages, Sun, Moon } from "lucide-react";
+import { Send, Mic, MicOff, Volume2, VolumeX, Languages } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // --- 3D ASSETS (VAIKUNTHA GATES) ---
@@ -108,7 +108,7 @@ export default function Chat() {
     setTimeout(() => setShowUI(true), 2500);
   };
 
-  // --- VOICE ENGINE (Fixed) ---
+  // --- VOICE ENGINE ---
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -151,6 +151,7 @@ export default function Chat() {
     } catch (e) { console.error("Audio error", e); }
   };
 
+  // --- API CONNECTION (CONNECTED TO RENDER) ---
   const sendMessage = async () => {
     if (!input.trim()) return;
     const text = input;
@@ -158,16 +159,22 @@ export default function Chat() {
     setMessages(prev => [...prev, { role: "user", text }]);
     setLoading(true);
     try {
+      // ✅ CORRECT RENDER BACKEND URL
       const res = await fetch("https://krishna-ai-temple.onrender.com/chat", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
         // Sending Language to Backend so it knows which voice to generate
         body: JSON.stringify({ text, language }), 
       });
       const data = await res.json();
       setMessages(prev => [...prev, { role: "ai", text: data.reply }]);
       if (data.audio) playAudio(data.audio);
-    } catch (e) { setMessages(prev => [...prev, { role: "ai", text: "Peace. Connection faint." }]); }
-    finally { setLoading(false); }
+    } catch (e) { 
+        console.error(e);
+        setMessages(prev => [...prev, { role: "ai", text: "Peace. Connection faint." }]); 
+    } finally { 
+        setLoading(false); 
+    }
   };
 
   return (
