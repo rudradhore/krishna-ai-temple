@@ -7,7 +7,6 @@ import edge_tts
 import base64
 import tempfile
 
-# Initialize App
 app = Flask(__name__)
 CORS(app)
 
@@ -20,12 +19,7 @@ if api_key:
 VOICE_EN = "en-IN-PrabhatNeural"
 VOICE_HI = "hi-IN-MadhurNeural"
 
-# System Prompts
-ENGLISH_PROMPT = "You are Krishna. Answer briefly (max 2 sentences) with divine wisdom. Tone: Calm, Masculine."
-HINDI_PROMPT = "आप कृष्ण हैं। संक्षेप में (अधिकतम 2 वाक्य) उत्तर दें। लहजा: शांत, पुरुषोचित।"
-
 async def generate_audio_edge(text, voice):
-    """Generates audio using Edge TTS"""
     communicate = edge_tts.Communicate(text, voice)
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
         temp_filename = temp_file.name
@@ -36,61 +30,54 @@ async def generate_audio_edge(text, voice):
     return base64.b64encode(audio_bytes).decode('utf-8')
 
 def get_krishna_response(text, lang):
-    # 🛡️ SMART FALLBACK: Try these models in order until one works
-    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro', 'gemini-1.0-pro']
-    
-    prompt = HINDI_PROMPT if lang == 'hi' else ENGLISH_PROMPT
-    full_prompt = f"{prompt}\n\nUser: {text}"
-
-    for model_name in models_to_try:
+    # Try the most standard model first
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(f"You are Krishna. Answer briefly. User: {text}")
+        return response.text
+    except Exception as e:
+        print(f"❌ Primary Model Failed: {e}")
         try:
-            print(f"Trying AI Model: {model_name}...")
-            model = genai.GenerativeModel(model_name)
-            response = model.generate_content(full_prompt)
+            # Fallback to older model
+            model = genai.GenerativeModel('gemini-pro')
+            response = model.generate_content(f"You are Krishna. Answer briefly. User: {text}")
             return response.text
-        except Exception as e:
-            print(f"❌ Model {model_name} failed: {e}")
-            continue # Try the next model in the list
-            
-    # If all models fail
-    print("All AI models failed.")
-    return "Shanti. Look within."
+        except Exception as e2:
+            print(f"❌ Backup Model Failed: {e2}")
+            return "Shanti. Look within."
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    data = request.json
+    text = data.get('text')
+    lang = data.get('language', 'en')
+    
+    # Get Text
+    reply = get_krishna_response(text, lang)
+    
+    # Get Audio
+    voice = VOICE_HI if lang == 'hi' else VOICE_EN
     try:
-        data = request.json
-        user_text = data.get('text')
-        lang = data.get('language', 'en')
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        audio = loop.run_until_complete(generate_audio_edge(reply, voice))
+        loop.close()
+    except:
+        audio = None
         
-        if not user_text:
-            return jsonify({"error": "No text"}), 400
+    return jsonify({"reply": reply, "audio": audio})
 
-        # 1. Get Text (With Smart Fallback)
-        reply_text = get_krishna_response(user_text, lang)
-        
-        # 2. Get Voice
-        voice = VOICE_HI if lang == 'hi' else VOICE_EN
-        
-        # 3. Generate Audio
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            audio_base64 = loop.run_until_complete(generate_audio_edge(reply_text, voice))
-            loop.close()
-        except Exception as e:
-            print(f"Audio Error: {e}")
-            audio_base64 = None
-        
-        return jsonify({"reply": reply_text, "audio": audio_base64})
-
+# 🕵️‍♂️ NEW DIAGNOSTIC ROUTE
+@app.route('/debug', methods=['GET'])
+def debug():
+    try:
+        models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                models.append(m.name)
+        return jsonify({"status": "Key is working", "available_models": models})
     except Exception as e:
-        print(f"Server Error: {e}")
-        return jsonify({"reply": "Connection faint...", "audio": None})
-
-@app.route('/', methods=['GET'])
-def health_check():
-    return "Krishna AI Temple Backend is Live."
+        return jsonify({"status": "Key Failed", "error": str(e)})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
