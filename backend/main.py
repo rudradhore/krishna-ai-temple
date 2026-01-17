@@ -10,20 +10,22 @@ import tempfile
 # Initialize App
 app = Flask(__name__)
 CORS(app)
-        
 
 # Configure API Key
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+api_key = os.environ.get("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
 
-# Voices
+# Voice Settings
 VOICE_EN = "en-IN-PrabhatNeural"
 VOICE_HI = "hi-IN-MadhurNeural"
 
-# Prompts
+# System Prompts
 ENGLISH_PROMPT = "You are Krishna. Answer briefly (max 2 sentences) with divine wisdom. Tone: Calm, Masculine."
 HINDI_PROMPT = "आप कृष्ण हैं। संक्षेप में (अधिकतम 2 वाक्य) उत्तर दें। लहजा: शांत, पुरुषोचित।"
 
 async def generate_audio_edge(text, voice):
+    """Generates audio using Edge TTS"""
     communicate = edge_tts.Communicate(text, voice)
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
         temp_filename = temp_file.name
@@ -34,14 +36,25 @@ async def generate_audio_edge(text, voice):
     return base64.b64encode(audio_bytes).decode('utf-8')
 
 def get_krishna_response(text, lang):
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        prompt = HINDI_PROMPT if lang == 'hi' else ENGLISH_PROMPT
-        response = model.generate_content(f"{prompt}\n\nUser: {text}")
-        return response.text
-    except Exception as e:
-        print(f"AI Error: {e}")
-        return "Shanti."
+    # 🛡️ SMART FALLBACK: Try these models in order until one works
+    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro', 'gemini-1.0-pro']
+    
+    prompt = HINDI_PROMPT if lang == 'hi' else ENGLISH_PROMPT
+    full_prompt = f"{prompt}\n\nUser: {text}"
+
+    for model_name in models_to_try:
+        try:
+            print(f"Trying AI Model: {model_name}...")
+            model = genai.GenerativeModel(model_name)
+            response = model.generate_content(full_prompt)
+            return response.text
+        except Exception as e:
+            print(f"❌ Model {model_name} failed: {e}")
+            continue # Try the next model in the list
+            
+    # If all models fail
+    print("All AI models failed.")
+    return "Shanti. Look within."
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -53,17 +66,31 @@ def chat():
         if not user_text:
             return jsonify({"error": "No text"}), 400
 
+        # 1. Get Text (With Smart Fallback)
         reply_text = get_krishna_response(user_text, lang)
+        
+        # 2. Get Voice
         voice = VOICE_HI if lang == 'hi' else VOICE_EN
         
-        # Async call
-        audio_base64 = asyncio.run(generate_audio_edge(reply_text, voice))
+        # 3. Generate Audio
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            audio_base64 = loop.run_until_complete(generate_audio_edge(reply_text, voice))
+            loop.close()
+        except Exception as e:
+            print(f"Audio Error: {e}")
+            audio_base64 = None
         
         return jsonify({"reply": reply_text, "audio": audio_base64})
+
     except Exception as e:
         print(f"Server Error: {e}")
         return jsonify({"reply": "Connection faint...", "audio": None})
 
+@app.route('/', methods=['GET'])
+def health_check():
+    return "Krishna AI Temple Backend is Live."
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-    # Krishna AI Temple - Vaikuntha Update 1.0
