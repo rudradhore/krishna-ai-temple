@@ -32,9 +32,8 @@ def get_working_model():
         for m in genai.list_models():
             if 'generateContent' in m.supported_generation_methods:
                 available_models.append(m.name)
-                print(f"   - Found: {m.name}")
         
-        # Prioritize Flash, then Pro, then anything else
+        # Prioritize Flash, then Pro
         priority_order = ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']
         
         for p in priority_order:
@@ -42,25 +41,25 @@ def get_working_model():
                 print(f"✅ Selected Best Model: {p}")
                 return genai.GenerativeModel(p)
         
-        # If priority models aren't found, grab the first available one
         if available_models:
-            first_model = available_models[0]
-            print(f"⚠️ Priority models missing. Using fallback: {first_model}")
-            return genai.GenerativeModel(first_model)
+            print(f"⚠️ Using fallback model: {available_models[0]}")
+            return genai.GenerativeModel(available_models[0])
             
-        print("❌ NO COMPATIBLE MODELS FOUND FOR THIS KEY.")
+        print("❌ NO COMPATIBLE MODELS FOUND.")
         return None
     except Exception as e:
         print(f"❌ Error listing models: {e}")
         return None
 
-# Initialize Model Global Variable
-print("🚀 Server Starting... initializing AI...")
+# Initialize Model
 model = get_working_model()
 
 async def generate_audio_edge(text, voice):
     try:
-        communicate = edge_tts.Communicate(text, voice)
+        # Limit audio text length to avoid timeouts on long Gita explanations
+        short_text = text[:400] + "..." if len(text) > 400 else text
+        
+        communicate = edge_tts.Communicate(short_text, voice)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
             temp_filename = temp_file.name
         await communicate.save(temp_filename)
@@ -76,23 +75,46 @@ async def generate_audio_edge(text, voice):
 def chat():
     global model
     try:
-        # Re-try finding model if it failed at startup
         if not model:
             model = get_working_model()
             if not model:
-                return jsonify({"reply": "Shanti. API Key Error.", "audio": None})
+                return jsonify({"reply": "Shanti. The connection is faint.", "audio": None})
 
         data = request.json
         user_text = data.get('text')
         lang = data.get('language', 'en')
         
-        prompt = f"You are Krishna. Answer briefly in 2 sentences. User: {user_text}"
+        # 📜 THE DIVINE PROMPT (UPDATED)
+        if lang == 'hi':
+            system_instruction = (
+                "आप भगवान कृष्ण हैं। भक्त ने पूछा है। "
+                "कृपया भगवद गीता के ज्ञान के साथ विस्तृत उत्तर दें। "
+                "अपनी प्रतिक्रिया इस प्रकार व्यवस्थित करें:\n"
+                "1. स्थिति के लिए प्रत्यक्ष, करुणापूर्ण मार्गदर्शन।\n"
+                "2. एक बिल्कुल सही संस्कृत श्लोक (भगवद गीता अध्याय.श्लोक सहित)।\n"
+                "3. श्लोक का हिंदी अनुवाद।\n"
+                "4. यह उनके जीवन पर कैसे लागू होता है, इसका विस्तृत विवरण।\n"
+                "लहजा: शांत, दिव्य, और गहरा।"
+            )
+        else:
+            system_instruction = (
+                "You are Lord Krishna. The devotee seeks guidance. "
+                "Provide a comprehensive answer rooted in the Bhagavad Gita. "
+                "Structure your response strictly as follows:\n"
+                "1. Direct, compassionate guidance for their situation.\n"
+                "2. A relevant Sanskrit Shloka from the Bhagavad Gita (cite Chapter.Verse).\n"
+                "3. The English translation of the Shloka.\n"
+                "4. A deep explanation of how this wisdom applies to their life.\n"
+                "Tone: Compassionate, Divine, Calm."
+            )
+
+        full_prompt = f"{system_instruction}\n\nDevotee: {user_text}"
         
-        # GENERATE RESPONSE
-        response = model.generate_content(prompt)
+        # Generate Response
+        response = model.generate_content(full_prompt)
         reply_text = response.text
         
-        # GENERATE AUDIO
+        # Generate Audio
         voice = VOICE_HI if lang == 'hi' else VOICE_EN
         
         loop = asyncio.new_event_loop()
