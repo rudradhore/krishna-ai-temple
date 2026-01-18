@@ -109,18 +109,32 @@ export default function Chat() {
   };
 
   // --- VOICE ENGINE ---
+ // --- VOICE ENGINE (ROBUST FIX) ---
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
       if (SpeechRecognition) {
+        // 1. Kill any existing instance first
+        if (recognitionRef.current) {
+            recognitionRef.current.abort();
+        }
+
+        // 2. Create new instance
         const recognition = new SpeechRecognition();
-        recognition.continuous = false; // Easier for chat
+        recognition.continuous = false;
         recognition.interimResults = true;
-        // 🌍 DYNAMIC LANGUAGE SWITCHING
+        
+        // 3. Set Language Explicitly
         recognition.lang = language === 'hi' ? 'hi-IN' : 'en-US'; 
+        console.log("Voice Language set to:", recognition.lang);
 
         recognition.onstart = () => setIsListening(true);
         recognition.onend = () => setIsListening(false);
+        recognition.onerror = (event: any) => {
+            console.error("Speech Error:", event.error);
+            setIsListening(false);
+        };
 
         recognition.onresult = (event: any) => {
           const transcript = event.results[event.results.length - 1][0].transcript;
@@ -128,10 +142,11 @@ export default function Chat() {
             setInput(transcript);
           }
         };
+
         recognitionRef.current = recognition;
       }
     }
-  }, [language]); // Re-initialize when language changes
+  }, [language]); // This dependency ensures it re-runs when 'language' changes
 
   const toggleMic = () => {
     if (!recognitionRef.current) return alert("Browser does not support voice.");

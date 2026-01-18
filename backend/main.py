@@ -56,15 +56,18 @@ model = get_working_model()
 
 async def generate_audio_edge(text, voice):
     try:
-        # Limit audio text length to avoid timeouts on long Gita explanations
-        short_text = text[:400] + "..." if len(text) > 400 else text
+        # ✅ FIX: Removed the 400 character limit. Now it reads EVERYTHING.
+        # We assume the text won't be hour-long, so this is safe for chat.
+        communicate = edge_tts.Communicate(text, voice)
         
-        communicate = edge_tts.Communicate(short_text, voice)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
             temp_filename = temp_file.name
+            
         await communicate.save(temp_filename)
+        
         with open(temp_filename, "rb") as f:
             audio_bytes = f.read()
+            
         os.remove(temp_filename)
         return base64.b64encode(audio_bytes).decode('utf-8')
     except Exception as e:
