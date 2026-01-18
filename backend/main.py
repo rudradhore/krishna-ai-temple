@@ -55,9 +55,9 @@ def get_working_model():
 model = get_working_model()
 
 async def generate_audio_edge(text, voice):
+    """Generates audio for the FULL text without cutting it off."""
     try:
-        # ✅ FIX: Removed the 400 character limit. Now it reads EVERYTHING.
-        # We assume the text won't be hour-long, so this is safe for chat.
+        # ✅ FULL AUDIO ENABLED (No character limit)
         communicate = edge_tts.Communicate(text, voice)
         
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
@@ -87,7 +87,7 @@ def chat():
         user_text = data.get('text')
         lang = data.get('language', 'en')
         
-        # 📜 THE DIVINE PROMPT (UPDATED)
+        # 📜 THE DIVINE PROMPT
         if lang == 'hi':
             system_instruction = (
                 "आप भगवान कृष्ण हैं। भक्त ने पूछा है। "

@@ -108,8 +108,7 @@ export default function Chat() {
     setTimeout(() => setShowUI(true), 2500);
   };
 
-  // --- VOICE ENGINE ---
- // --- VOICE ENGINE (ROBUST FIX) ---
+  // --- VOICE ENGINE (ROBUST FIX) ---
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
