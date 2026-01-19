@@ -55,10 +55,14 @@ def get_working_model():
 model = get_working_model()
 
 async def generate_audio_edge(text, voice):
-    """Generates audio for the FULL text without cutting it off."""
+    """Generates audio. Truncates ONLY audio to prevent Server Crash (OOM)."""
     try:
-        # ✅ FULL AUDIO ENABLED (No character limit)
-        communicate = edge_tts.Communicate(text, voice)
+        # 🛡️ SAFETY LIMIT: 1000 Characters (~1.5 mins of audio)
+        # The Render Free Tier runs out of RAM if we generate more than this.
+        # The user still sees the FULL text, but audio stops after the main part.
+        safe_text = text[:1000] + "..." if len(text) > 1000 else text
+
+        communicate = edge_tts.Communicate(safe_text, voice)
         
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
             temp_filename = temp_file.name
