@@ -7,6 +7,7 @@ import edge_tts
 import base64
 import tempfile
 import sys
+import re  # ✅ Added regex for cleaning text
 
 # Initialize App
 app = Flask(__name__)
@@ -23,9 +24,31 @@ else:
 VOICE_EN = "en-IN-PrabhatNeural"
 VOICE_HI = "hi-IN-MadhurNeural"
 
+# --- 🧹 TEXT CLEANER FOR AUDIO ---
+def clean_text_for_audio(text):
+    """
+    Removes Markdown symbols (*, #, -) so the voice doesn't read them.
+    """
+    # Remove bold/italic markers (**word** -> word)
+    text = re.sub(r'\*\*|__', '', text)
+    text = re.sub(r'\*|_', '', text)
+    
+    # Remove headers (## Title -> Title)
+    text = re.sub(r'#+', '', text)
+    
+    # Remove bullet points/lists (- Item -> Item)
+    text = re.sub(r'^[\-\*]\s+', '', text, flags=re.MULTILINE)
+    
+    # Remove code blocks
+    text = re.sub(r'`', '', text)
+    
+    # Collapse multiple spaces/newlines into a single pause
+    text = re.sub(r'\n+', '. ', text)
+    
+    return text.strip()
+
 # --- 🧠 AUTO-DISCOVERY BRAIN ---
 def get_working_model():
-    """Asks Google which models are available and picks the first chat model."""
     try:
         print("🔍 Searching for available AI models...")
         available_models = []
@@ -33,7 +56,6 @@ def get_working_model():
             if 'generateContent' in m.supported_generation_methods:
                 available_models.append(m.name)
         
-        # Prioritize Flash, then Pro
         priority_order = ['models/gemini-1.5-flash', 'models/gemini-pro', 'models/gemini-1.0-pro']
         
         for p in priority_order:
@@ -42,10 +64,7 @@ def get_working_model():
                 return genai.GenerativeModel(p)
         
         if available_models:
-            print(f"⚠️ Using fallback model: {available_models[0]}")
             return genai.GenerativeModel(available_models[0])
-            
-        print("❌ NO COMPATIBLE MODELS FOUND.")
         return None
     except Exception as e:
         print(f"❌ Error listing models: {e}")
@@ -55,12 +74,12 @@ def get_working_model():
 model = get_working_model()
 
 async def generate_audio_edge(text, voice):
-    """Generates audio. Truncates ONLY audio to prevent Server Crash (OOM)."""
     try:
-        # 🛡️ SAFETY LIMIT: 1000 Characters (~1.5 mins of audio)
-        # The Render Free Tier runs out of RAM if we generate more than this.
-        # The user still sees the FULL text, but audio stops after the main part.
-        safe_text = text[:1000] + "..." if len(text) > 1000 else text
+        # 1. CLEAN THE TEXT (Remove symbols)
+        clean_text = clean_text_for_audio(text)
+        
+        # 2. SAFETY LIMIT (Prevents crash, keeps main content)
+        safe_text = clean_text[:1000] + "..." if len(clean_text) > 1000 else clean_text
 
         communicate = edge_tts.Communicate(safe_text, voice)
         
@@ -85,39 +104,37 @@ def chat():
         if not model:
             model = get_working_model()
             if not model:
-                return jsonify({"reply": "Shanti. The connection is faint.", "audio": None})
+                return jsonify({"reply": "Shanti. Connection faint.", "audio": None})
 
         data = request.json
         user_text = data.get('text')
         lang = data.get('language', 'en')
         
-        # 📜 THE DIVINE PROMPT
+        # 📜 UPDATED PROMPT: Request Transliteration for Shlokas
         if lang == 'hi':
             system_instruction = (
-                "आप भगवान कृष्ण हैं। भक्त ने पूछा है। "
+                "आप भगवान कृष्ण हैं। "
                 "कृपया भगवद गीता के ज्ञान के साथ विस्तृत उत्तर दें। "
                 "अपनी प्रतिक्रिया इस प्रकार व्यवस्थित करें:\n"
-                "1. स्थिति के लिए प्रत्यक्ष, करुणापूर्ण मार्गदर्शन।\n"
-                "2. एक बिल्कुल सही संस्कृत श्लोक (भगवद गीता अध्याय.श्लोक सहित)।\n"
-                "3. श्लोक का हिंदी अनुवाद।\n"
-                "4. यह उनके जीवन पर कैसे लागू होता है, इसका विस्तृत विवरण।\n"
-                "लहजा: शांत, दिव्य, और गहरा।"
+                "1. स्थिति के लिए मार्गदर्शन।\n"
+                "2. संस्कृत श्लोक (देवनागरी में)।\n"
+                "3. श्लोक का अर्थ।\n"
+                "4. जीवन में प्रयोग।\n"
+                "लहजा: शांत, दिव्य। स्वरूपण (Formatting) के लिए तारों (*) का प्रयोग न करें।"
             )
         else:
             system_instruction = (
-                "You are Lord Krishna. The devotee seeks guidance. "
-                "Provide a comprehensive answer rooted in the Bhagavad Gita. "
-                "Structure your response strictly as follows:\n"
-                "1. Direct, compassionate guidance for their situation.\n"
-                "2. A relevant Sanskrit Shloka from the Bhagavad Gita (cite Chapter.Verse).\n"
-                "3. The English translation of the Shloka.\n"
-                "4. A deep explanation of how this wisdom applies to their life.\n"
-                "Tone: Compassionate, Divine, Calm."
+                "You are Lord Krishna. Provide guidance rooted in the Bhagavad Gita. "
+                "Structure strictly as follows:\n"
+                "1. Compassionate guidance.\n"
+                "2. A relevant Sanskrit Shloka (Provide BOTH Devanagari script AND Romanized English transliteration so it can be read aloud).\n"
+                "3. English translation.\n"
+                "4. Explanation.\n"
+                "Tone: Divine. Do NOT use markdown symbols like ** or ## in your output."
             )
 
         full_prompt = f"{system_instruction}\n\nDevotee: {user_text}"
         
-        # Generate Response
         response = model.generate_content(full_prompt)
         reply_text = response.text
         
