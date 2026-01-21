@@ -7,7 +7,7 @@ import edge_tts
 import base64
 import tempfile
 import sys
-import re  # ✅ Added regex for cleaning text
+import re
 
 # Initialize App
 app = Flask(__name__)
@@ -20,32 +20,12 @@ if not api_key:
 else:
     genai.configure(api_key=api_key)
 
-# Voice Settings
+# --- 🎵 DIVINE VOICE SETTINGS ---
+# We use standard voices but tune them to be deeper and slower.
 VOICE_EN = "en-IN-PrabhatNeural"
 VOICE_HI = "hi-IN-MadhurNeural"
-
-# --- 🧹 TEXT CLEANER FOR AUDIO ---
-def clean_text_for_audio(text):
-    """
-    Removes Markdown symbols (*, #, -) so the voice doesn't read them.
-    """
-    # Remove bold/italic markers (**word** -> word)
-    text = re.sub(r'\*\*|__', '', text)
-    text = re.sub(r'\*|_', '', text)
-    
-    # Remove headers (## Title -> Title)
-    text = re.sub(r'#+', '', text)
-    
-    # Remove bullet points/lists (- Item -> Item)
-    text = re.sub(r'^[\-\*]\s+', '', text, flags=re.MULTILINE)
-    
-    # Remove code blocks
-    text = re.sub(r'`', '', text)
-    
-    # Collapse multiple spaces/newlines into a single pause
-    text = re.sub(r'\n+', '. ', text)
-    
-    return text.strip()
+AUDIO_RATE = "-10%"   # Slower for wisdom
+AUDIO_PITCH = "-5Hz"  # Deeper for authority
 
 # --- 🧠 AUTO-DISCOVERY BRAIN ---
 def get_working_model():
@@ -73,15 +53,43 @@ def get_working_model():
 # Initialize Model
 model = get_working_model()
 
+# --- 🧹 ADVANCED TEXT CLEANER ---
+def clean_text_for_audio(text):
+    """
+    Prepares text for the voice engine:
+    1. Removes Markdown (*, #).
+    2. Replaces Sanskrit 'Dandas' (|) with pauses.
+    3. Removes emojis.
+    """
+    # 1. Remove Markdown
+    text = re.sub(r'[*_#`~]', '', text)          # Remove stars, hashes, underscores
+    text = re.sub(r'\[.*?\]', '', text)          # Remove [text] style brackets
+    text = re.sub(r'\(.*?\)', '', text)          # Remove (text) style brackets if needed
+    
+    # 2. Fix Sanskrit Punctuation for Pause
+    text = text.replace('||', '.')               # Double Danda -> Full Stop
+    text = text.replace('|', ',')                # Single Danda -> Comma (Short pause)
+    
+    # 3. Collapse whitespace
+    text = re.sub(r'\s+', ' ', text)
+    
+    return text.strip()
+
 async def generate_audio_edge(text, voice):
     try:
-        # 1. CLEAN THE TEXT (Remove symbols)
+        # 1. Clean the text (Remove symbols, fix pauses)
         clean_text = clean_text_for_audio(text)
         
-        # 2. SAFETY LIMIT (Prevents crash, keeps main content)
+        # 2. Safety Limit (1000 chars ~ 1.5 mins)
         safe_text = clean_text[:1000] + "..." if len(clean_text) > 1000 else clean_text
 
-        communicate = edge_tts.Communicate(safe_text, voice)
+        # 3. 🎵 APPLY DIVINE MODULATION (Rate & Pitch)
+        communicate = edge_tts.Communicate(
+            safe_text, 
+            voice, 
+            rate=AUDIO_RATE, 
+            pitch=AUDIO_PITCH
+        )
         
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp_file:
             temp_filename = temp_file.name
@@ -110,27 +118,27 @@ def chat():
         user_text = data.get('text')
         lang = data.get('language', 'en')
         
-        # 📜 UPDATED PROMPT: Request Transliteration for Shlokas
+        # 📜 PROMPT FOR AUDIO READABILITY
         if lang == 'hi':
             system_instruction = (
                 "आप भगवान कृष्ण हैं। "
                 "कृपया भगवद गीता के ज्ञान के साथ विस्तृत उत्तर दें। "
-                "अपनी प्रतिक्रिया इस प्रकार व्यवस्थित करें:\n"
-                "1. स्थिति के लिए मार्गदर्शन।\n"
-                "2. संस्कृत श्लोक (देवनागरी में)।\n"
-                "3. श्लोक का अर्थ।\n"
-                "4. जीवन में प्रयोग।\n"
-                "लहजा: शांत, दिव्य। स्वरूपण (Formatting) के लिए तारों (*) का प्रयोग न करें।"
+                "महत्वपूर्ण: अपने उत्तर में किसी भी प्रकार के 'मार्कडाउन' (जैसे **, ##) का प्रयोग न करें। "
+                "संरचना:\n"
+                "1. मार्गदर्शन।\n"
+                "2. संस्कृत श्लोक।\n"
+                "3. अर्थ।\n"
+                "लहजा: शांत, गहरा और दिव्य।"
             )
         else:
             system_instruction = (
                 "You are Lord Krishna. Provide guidance rooted in the Bhagavad Gita. "
-                "Structure strictly as follows:\n"
+                "IMPORTANT: Do NOT use markdown symbols (*, #) in your response, as they confuse the voice engine. "
+                "Structure:\n"
                 "1. Compassionate guidance.\n"
-                "2. A relevant Sanskrit Shloka (Provide BOTH Devanagari script AND Romanized English transliteration so it can be read aloud).\n"
-                "3. English translation.\n"
-                "4. Explanation.\n"
-                "Tone: Divine. Do NOT use markdown symbols like ** or ## in your output."
+                "2. Sanskrit Shloka (Provide Romanized English Transliteration for pronunciation).\n"
+                "3. Meaning.\n"
+                "Tone: Deep, Slow, Divine."
             )
 
         full_prompt = f"{system_instruction}\n\nDevotee: {user_text}"
